@@ -8,7 +8,7 @@ import { Camera } from "@/lib/camera";
 import { targetAnchor } from "@/lib/disruptions";
 import { clamp, nearestOnPolyline, pointAt } from "@/lib/geometry";
 import { InterpolatedTrains } from "@/lib/interp";
-import { centerWithInsets, currentInsets, fitWithInsets } from "@/lib/layout";
+import { centerWithInsets, currentInsets, currentOccluders, fitWithInsets, homeView } from "@/lib/layout";
 import type { Network } from "@/lib/network";
 import { STATUS } from "@/lib/protocol";
 import { getSession } from "@/lib/session";
@@ -48,6 +48,7 @@ export class MapEngine {
   private readonly dyn = new DynamicRenderer();
   private readonly hit: HitTester;
   private readonly trains = new InterpolatedTrains();
+  private readonly ghosts = new InterpolatedTrains(256);
   private readonly crowd: Float32Array;
   private readonly ctx: CanvasRenderingContext2D;
   private dpr = 1;
@@ -77,6 +78,7 @@ export class MapEngine {
     this.hit = new HitTester(net);
     this.crowd = new Float32Array(net.stations.length);
     this.camera.setBounds(net.bbox);
+    this.camera.setContentProbe((x, y, r) => this.hit.nearestContent(x, y, r));
   }
 
   start(): void {
@@ -144,7 +146,7 @@ export class MapEngine {
         const v = viewToCamera(linked, this.net.projection);
         this.camera.set(centerWithInsets(v.cx, v.cy, v.mPerPx, insets));
       } else {
-        this.camera.set(fitWithInsets(this.net.bbox, w, h, insets));
+        this.camera.set(this.homeView(w, h));
       }
     }
   }
@@ -166,7 +168,7 @@ export class MapEngine {
     ctx.fillRect(0, 0, cam.width, cam.height);
     this.base.drawTo(ctx, this.net, cam, this.dpr, now);
 
-    frames.sample(now, this.net.edges, this.trains);
+    frames.sample(now, this.net.edges, this.trains, this.ghosts);
     const crowdCount = frames.sampleStationCrowd(now, this.crowd);
     const tier = tierFor(cam.mPerPx);
     if (this.hoverDirty) this.updateHover(tier);
@@ -177,6 +179,7 @@ export class MapEngine {
       dpr: this.dpr,
       now,
       trains: this.trains,
+      ghosts: this.ghosts,
       crowd: this.crowd,
       crowdCount,
       disruptions: s.disruptions,
@@ -242,8 +245,13 @@ export class MapEngine {
         { minDurationMs: 260, maxDurationMs: 420 },
       );
     } else {
-      cam.flyTo(fitWithInsets(this.net.bbox, cam.width, cam.height, insets), now);
+      cam.flyTo(this.homeView(cam.width, cam.height), now);
     }
+  }
+
+  /** The whole network, centred on the visible map (see `homeView`). */
+  private homeView(w: number, h: number) {
+    return homeView(this.net.bbox, this.net.stations, w, h, currentInsets(w, h), currentOccluders().rects);
   }
 
   // ─── input ───────────────────────────────────────────────────────────────

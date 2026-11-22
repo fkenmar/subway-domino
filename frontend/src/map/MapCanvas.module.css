@@ -26,7 +26,7 @@
   max-width: 320px;
   padding: 6px 9px;
   border-radius: 8px;
-  background: rgba(10, 15, 23, 0.94);
+  background: rgba(17, 17, 17, 0.97);
   border: 1px solid var(--line-strong);
   color: var(--text);
   font-size: 12px;
@@ -45,8 +45,8 @@
   display: grid;
   place-items: center;
   background:
-    radial-gradient(1200px 600px at 55% 45%, rgba(40, 70, 120, 0.18), transparent 70%),
-    linear-gradient(110deg, transparent 30%, rgba(120, 160, 220, 0.05) 50%, transparent 70%) var(--map-bg);
+    radial-gradient(1200px 600px at 55% 45%, rgba(243, 238, 228, 0.55), transparent 70%),
+    linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.25) 50%, transparent 70%) var(--map-bg);
   background-size: 100% 100%, 300% 100%;
   animation: shimmer 2.4s linear infinite;
 }
@@ -58,7 +58,7 @@
   gap: 10px;
   max-width: 360px;
   padding: 18px 22px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--panel);
   border: 1px solid var(--line);
   color: var(--text-muted);
@@ -82,7 +82,7 @@
 .retry {
   margin-top: 4px;
   padding: 7px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--line-strong);
   background: var(--panel-raised);
   color: var(--text);

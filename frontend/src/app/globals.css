@@ -1,37 +1,76 @@
-/* Subway Domino — dark transit control-room theme. */
+/* Subway Domino: NYC subway design language (black signage over a printed-map basemap). Not affiliated with the MTA. */
 
 :root {
   color-scheme: dark;
-  --map-bg: #0a0f17;
-  --bg: #070b11;
-  --panel: rgba(12, 18, 28, 0.95);
-  --panel-solid: #0d131d;
-  --panel-raised: #141c29;
-  --panel-hover: #1a2433;
-  --line: rgba(148, 170, 205, 0.13);
-  --line-strong: rgba(148, 170, 205, 0.26);
-  --text: #e9eef6;
-  --text-muted: #9fadc1;
-  --text-dim: #6d7c92;
-  --accent: #5ac8fa;
-  --ai: #5ac8fa;
-  --ai-strong: #2fb6f5;
-  --ai-glow: rgba(90, 200, 250, 0.42);
-  --normal: #c9d3e1;
-  --good: #34c759;
-  --bad: #ff5a4f;
-  --warn: #ffb020;
-  --focus: #5ac8fa;
-  --radius-lg: 16px;
-  --radius: 12px;
-  --radius-sm: 8px;
-  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 18px 50px rgba(0, 0, 0, 0.55);
-  --blur: saturate(140%) blur(14px);
-  --font: "Helvetica Neue", Helvetica, Arial, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* WP3c: printed-map basemap (light) under black station-signage chrome. */
+  --map-bg: #bfdaea;
+  --bg: #000000;
+  --panel: rgba(17, 17, 17, 0.97);
+  --panel-solid: #121212;
+  --panel-raised: #1c1c1c;
+  --panel-hover: #262626;
+  --line: rgba(255, 255, 255, 0.13);
+  --line-strong: rgba(255, 255, 255, 0.26);
+  --text: #ffffff;
+  --text-muted: #c4c4c4;
+  --text-dim: #949494;
+  /* The AI dispatcher's accent: a signage information blue (7.4:1 on the black signs). */
+  --accent: #4aa8ff;
+  --ai: #4aa8ff;
+  --ai-strong: #1f8fff;
+  --ai-glow: rgba(74, 168, 255, 0.4);
+  --ai-ink: #0b5cc4;
+  /* Solid AI fill that carries white text (5.6:1). */
+  --ai-fill: #0a62cc;
+  --normal: #d6d6d6;
+  --good: #3ed36b;
+  --bad: #ff5b4f;
+  --warn: #ffb100;
+  --focus: #ffffff;
+  /* Countdown-clock LEDs: amber dot-matrix digits on black. */
+  --led: #ffb100;
+  --led-dim: rgba(255, 177, 0, 0.16);
+  --led-glow: 0 0 6px rgba(255, 160, 0, 0.55), 0 0 1px rgba(255, 190, 40, 0.9);
+  --led-font: var(--font-led), ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* Service-change posters. */
+  --poster: #ffffff;
+  --poster-ink: #111111;
+  --poster-muted: #4a4a4a;
+  --radius-lg: 8px;
+  --radius: 6px;
+  --radius-sm: 4px;
+  --shadow-sm: 0 4px 14px rgba(40, 32, 18, 0.28);
+  --shadow-lg: 0 18px 50px rgba(30, 24, 14, 0.38);
+  --blur: none;
+  --font: "Helvetica Neue", Helvetica, Arial, "Nimbus Sans", sans-serif;
   --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Signage surfaces float over the light map: solid black boards. */
+  --glass: #111111;
+  --glass-strong: #111111;
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-hover: rgba(255, 255, 255, 0.09);
+  --glass-active: rgba(255, 255, 255, 0.15);
+  --glass-shadow: 0 10px 26px rgba(38, 30, 16, 0.26), 0 2px 5px rgba(38, 30, 16, 0.2);
+  --glass-blur: none;
+  /* The thin white rule along the top edge of a platform sign (3 px down from the edge). */
+  --sign-rule: inset 0 3px 0 0 var(--glass-strong), inset 0 4px 0 0 rgba(255, 255, 255, 0.88);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.55, 0, 0.75, 0.2);
+  --dur-fast: 160ms;
+  --dur: 220ms;
+  --gutter: 16px;
+  --bar-h: 52px;
+  --dock-h: 44px;
+}
+
+@media (max-width: 699px) {
+  :root {
+    --gutter: 10px;
+    --bar-h: 48px;
+  }
 }
 
 *,
@@ -79,7 +118,7 @@ a {
 }
 
 ::selection {
-  background: rgba(90, 200, 250, 0.35);
+  background: rgba(74, 168, 255, 0.35);
 }
 
 .visually-hidden {
@@ -108,6 +147,25 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
+/* Floating black signage surface for the immersive HUD (plain: no rule on small buttons). */
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+/*
+ * A full sign: the thin white rule along the top edge, on square corners (as on a platform
+ * sign). Kept for the top band, the scoreboard, the Break-the-city menu and poster headers
+ * only, so it still means "sign" rather than reading as a bevel.
+ */
+.glass.sign {
+  border-radius: 2px;
+  box-shadow: var(--sign-rule), var(--glass-shadow);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -116,4 +174,15 @@ a {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* Countdown-clock digits (dot-matrix LED). */
+.led {
+  font-family: var(--led-font);
+  font-weight: 400;
+  font-synthesis: none;
+  color: var(--led);
+  text-shadow: var(--led-glow);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }

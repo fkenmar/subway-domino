@@ -6,13 +6,14 @@ const oneDecimal = new Intl.NumberFormat("en-US", { minimumFractionDigits: 1, ma
 export const DASH = "—";
 
 /** Sim clock → wall-clock time of day, e.g. 30120 → "8:22 AM". */
-export function formatClock(clockS: number | null | undefined): string {
-  if (clockS == null || !Number.isFinite(clockS)) return "--:--";
+export function formatClock(clockS: number | null | undefined, opts: { seconds?: boolean } = {}): string {
+  if (clockS == null || !Number.isFinite(clockS)) return opts.seconds ? "--:--:--" : "--:--";
   const day = ((Math.floor(clockS) % 86400) + 86400) % 86400;
   const h24 = Math.floor(day / 3600);
   const m = Math.floor((day % 3600) / 60);
   const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
-  return `${h12}:${String(m).padStart(2, "0")} ${h24 < 12 ? "AM" : "PM"}`;
+  const sec = opts.seconds ? `:${String(day % 60).padStart(2, "0")}` : "";
+  return `${h12}:${String(m).padStart(2, "0")}${sec} ${h24 < 12 ? "AM" : "PM"}`;
 }
 
 /** Seconds → "m:ss" (or "h:mm:ss"). Negative values clamp to 0. */
@@ -32,6 +33,20 @@ export function formatSpan(seconds: number): string {
   const m = Math.round(s / 60);
   if (m < 60) return `${m} min`;
   return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min`;
+}
+
+/** Seconds → a duration that can't be mistaken for a time of day: "42s", "8m 40s", "1h 05m". */
+export function formatDuration(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds));
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
+  return `${Math.floor(s / 3600)}h ${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}m`;
+}
+
+/** Split the server's aggregated-callout suffix " (+N more dispatch actions)" off a callout sentence. */
+export function splitMoreSuffix(text: string): { text: string; more: number } {
+  const m = /\s*\(\+(\d+) more dispatch actions?\)\s*$/.exec(text);
+  return m ? { text: text.slice(0, m.index), more: Number(m[1]) } : { text, more: 0 };
 }
 
 export function formatInt(n: number | null | undefined): string {

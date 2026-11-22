@@ -2,12 +2,16 @@
  * Session controller: glues the WebSocket client, the zustand store and the
  * non-reactive FrameBuffer, and exposes the user commands. One per page.
  */
+import { CalloutPacer } from "./calloutPacer";
 import { WS_URL } from "./config";
-import { remainingS } from "./disruptions";
+import { remainingS, targetLabel } from "./disruptions";
+import { formatClock } from "./format";
 import { FrameBuffer } from "./interp";
 import type { GeoPreset } from "./network";
+import { mapView } from "@/map/mapView";
 import type {
   ClientMessage,
+  DisruptionEvent,
   DisruptionKind,
   DisruptionTarget,
   Frame,
@@ -28,6 +32,11 @@ const RESUME_GRACE_MS = 90_000;
 const OPTIMISTIC_HOLD_MS = 2_000;
 const OUTBOX_LIMIT = 16;
 const RECONNECTED_BANNER_MS = 2_500;
+/** Sim seconds per wall second at each speed. */
+const SIM_PER_WALL_S: Record<Speed, number> = { pause: 0, "1x": 60, "2x": 120, "5x": 300 };
+/** A disruption shorter than this in wall time gets a one-time "try 1 min/s" hint. */
+const SHORT_CRISIS_WALL_S = 15;
+const CALLOUT_TICK_MS = 250;
 
 interface Persisted {
   resumeToken: string | null;
@@ -64,6 +73,11 @@ export class SessionController {
   private reconnectedTimer: ReturnType<typeof setTimeout> | null = null;
   private warnedGraphMismatch = false;
   private persistTimer: ReturnType<typeof setInterval> | null = null;
+  private calloutTimer: ReturnType<typeof setInterval> | null = null;
+  private readonly pacer = new CalloutPacer();
+  /** The pointer is on the callout toast: don't swap it out from under the reader. */
+  private calloutHeld = false;
+  private speedHintShown = false;
 
   start(): void {
     if (this.client) return;
@@ -94,6 +108,7 @@ export class SessionController {
     this.client.start();
     // Keep the persisted restore payload fresh so a reload within the grace window resumes.
     this.persistTimer = setInterval(() => this.persist(), 5_000);
+    this.calloutTimer = setInterval(() => this.pumpCallouts(), CALLOUT_TICK_MS);
     if (typeof window !== "undefined") window.addEventListener("pagehide", this.persist);
   }
 
@@ -102,6 +117,8 @@ export class SessionController {
     this.client = null;
     if (this.persistTimer) clearInterval(this.persistTimer);
     this.persistTimer = null;
+    if (this.calloutTimer) clearInterval(this.calloutTimer);
+    this.calloutTimer = null;
     if (typeof window !== "undefined") window.removeEventListener("pagehide", this.persist);
   }
 
@@ -115,6 +132,10 @@ export class SessionController {
     if (mode === "ai") {
       s.setModePulse(false);
       if (s.onboarding !== "done") s.setOnboarding("done");
+    } else {
+      // Normal means no dispatch actions: AI callouts leave with the mode, and any
+      // still in flight are dropped (they stay in the dispatch log).
+      this.dropCallouts();
     }
     this.send({ type: "set_mode", mode });
   }
@@ -174,6 +195,11 @@ export class SessionController {
     this.send({ type: "reset" });
   }
 
+  /** The callout toast is hovered / focused (pauses pacing). */
+  holdCallout(held: boolean): void {
+    this.calloutHeld = held;
+  }
+
   resume(): void {
     this.client?.resume();
   }
@@ -184,6 +210,72 @@ export class SessionController {
   }
 
   // ─── internals ──────────────────────────────────────────────────────────
+
+  private dropCallouts(): void {
+    this.pacer.clear();
+    const s = useStore.getState();
+    if (s.callout) s.showCallout(null);
+  }
+
+  /** Swap in the next paced AI callout (at most one on screen, one every few seconds). */
+  private pumpCallouts(): void {
+    const s = useStore.getState();
+    if (s.settings.mode !== "ai") {
+      if (s.callout) this.dropCallouts();
+      return;
+    }
+    if (this.calloutHeld) return;
+    const net = s.network;
+    const cam = mapView.camera;
+    const inView = (idx: number) => {
+      const st = net?.stations[idx];
+      if (!st || !cam) return false;
+      const x = cam.toScreenX(st.x);
+      const y = cam.toScreenY(st.y);
+      return x >= 0 && y >= 0 && x <= cam.width && y <= cam.height;
+    };
+    const next = this.pacer.next(Date.now(), inView);
+    if (next) s.showCallout({ id: `callout-${next.event.id}`, event: next.event, recent: next.recent });
+  }
+
+  /** Disruption ended on its own: say so (toast + log), and record the window's real end. */
+  private onDisruptionEnded(ev: DisruptionEvent, t: number): void {
+    const s = useStore.getState();
+    s.endDisruptionWindow(ev.disruption.id, t);
+    // The "try 1 min/s" hint is moot once the crisis is over.
+    if (s.toasts.some((x) => x.id === `speed-hint-${ev.disruption.id}`)) s.dismissToast(`speed-hint-${ev.disruption.id}`);
+    if (ev.kind !== "disruption_expired") return;
+    const net = s.network;
+    const d = ev.disruption;
+    const name = net ? targetLabel(net, d.target) : d.label;
+    const what =
+      d.kind === "full_station_closure"
+        ? `${name} reopened`
+        : d.kind === "signal_delay"
+          ? `Signals back to normal at ${name}`
+          : `${name}: ${d.kind === "express_block" ? "express" : "local"} track clear again`;
+    s.pushToast({ id: `ended-${d.id}`, kind: "notice", text: `${what} · ${formatClock(t)}` });
+  }
+
+  /** A preset crisis that will be over in a few wall seconds: suggest a slower speed, once. */
+  private maybeSpeedHint(ev: DisruptionEvent): void {
+    const s = useStore.getState();
+    const d = ev.disruption;
+    if (this.speedHintShown || d.end_t == null) return;
+    const speed = s.settings.speed;
+    const rate = SIM_PER_WALL_S[speed];
+    if (speed === "1x" || rate <= 0) return;
+    const wallS = (d.end_t - d.start_t) / rate;
+    if (wallS > SHORT_CRISIS_WALL_S) return;
+    this.speedHintShown = true;
+    const what = d.kind === "full_station_closure" ? "closure" : d.kind === "signal_delay" ? "signal problem" : "track block";
+    s.pushToast({
+      id: `speed-hint-${d.id}`,
+      kind: "notice",
+      text: `This ${what} lasts ~${Math.max(1, Math.round(wallS))} s at ${speed === "5x" ? "5" : "2"} min/s. Try 1 min/s to watch the AI work through it.`,
+      cta: { label: "Slow to 1 min/s", speed: "1x" },
+    });
+  }
 
   private send(msg: ClientMessage): void {
     if (this.client?.send(msg)) return;
@@ -309,20 +401,17 @@ export class SessionController {
         for (const ev of msg.items) {
           if (ev.kind === "callout") {
             feed.push({ id: `c${ev.id}`, kind: "callout", t: ev.t, event: ev });
-            s.pushToast({
-              id: `callout-${ev.id}`,
-              dedupeKey: `${ev.action}:${ev.route}:${ev.station_idx}`,
-              kind: "callout",
-              text: ev.text,
-              route: ev.route,
-              stationIdx: ev.station_idx,
-              action: ev.action,
-            });
+            // Only while AI mode is (still) selected: a callout that lands after the
+            // switch back to Normal is logged, never toasted.
+            if (useStore.getState().settings.mode === "ai") this.pacer.offer(ev, Date.now());
           } else {
             const t = ev.kind === "disruption_started" ? ev.disruption.start_t : (s.clockS ?? ev.disruption.start_t);
             feed.push({ id: `${ev.kind}-${ev.disruption.id}`, kind: "disruption", t, event: ev });
-            if (ev.kind === "disruption_started" && useStore.getState().settings.mode === "normal") {
-              s.setModePulse(true);
+            if (ev.kind === "disruption_started") {
+              if (useStore.getState().settings.mode === "normal") s.setModePulse(true);
+              this.maybeSpeedHint(ev);
+            } else {
+              this.onDisruptionEnded(ev, t);
             }
           }
         }

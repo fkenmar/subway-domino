@@ -22,6 +22,8 @@ describe("format", () => {
     expect(formatClock(86_400 + 7_200)).toBe("2:00 AM"); // the clock keeps increasing past midnight
     expect(formatClock(null)).toBe("--:--");
     expect(formatClock(Number.NaN)).toBe("--:--");
+    expect(formatClock(30_125, { seconds: true })).toBe("8:22:05 AM");
+    expect(formatClock(null, { seconds: true })).toBe("--:--:--");
   });
 
   it("formats countdown chips", () => {
@@ -69,5 +71,17 @@ describe("format", () => {
   it("pluralizes", () => {
     expect(pluralize(1, "train")).toBe("1 train");
     expect(pluralize(1_200, "rider")).toBe("1,200 riders");
+  });
+});
+
+describe("splitMoreSuffix", () => {
+  it("splits the server's aggregated-callout suffix into a count", async () => {
+    const { splitMoreSuffix } = await import("@/lib/format");
+    expect(splitMoreSuffix("Held 6 at 14 St to keep it out of the tunnel (+50 more dispatch actions)")).toEqual({
+      text: "Held 6 at 14 St to keep it out of the tunnel",
+      more: 50,
+    });
+    expect(splitMoreSuffix("Short-turned L at 8 Av (+1 more dispatch action)")).toEqual({ text: "Short-turned L at 8 Av", more: 1 });
+    expect(splitMoreSuffix("Plain sentence.")).toEqual({ text: "Plain sentence.", more: 0 });
   });
 });

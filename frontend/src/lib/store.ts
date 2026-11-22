@@ -4,6 +4,7 @@
  * canvas render loop directly. The store holds what React renders.
  */
 import { create } from "zustand";
+import { type AiScoreState, accumulateScore } from "./aiScore";
 import type { CameraState } from "./camera";
 import type { Bbox } from "./geometry";
 import type { Network } from "./network";
@@ -16,6 +17,7 @@ import type {
   MetricsMessage,
   MetricValues,
   Settings,
+  Speed,
   WelcomeConstants,
 } from "./protocol";
 
@@ -72,6 +74,25 @@ export interface Toast {
   action?: ActionName;
   /** Wall-clock ms (Date.now()) when the toast was created. */
   createdAt: number;
+  /** Optional one-click follow-up (e.g. "Slow to 1 min/s"). */
+  cta?: { label: string; speed: Speed };
+}
+
+/** The single AI callout on screen (paced: see calloutPacer.ts). */
+export interface ActiveCallout {
+  id: string;
+  event: CalloutEvent;
+  /** AI actions received in the last 10 s of wall time. */
+  recent: number;
+}
+
+/** A disruption's sim-time window, kept after it ends so sparklines can shade it. */
+export interface DisruptionWindow {
+  id: number;
+  start_t: number;
+  /** Planned end while active (null = until cleared); the actual end once it has ended. */
+  end_t: number | null;
+  ended: boolean;
 }
 
 export interface Selection {
@@ -98,6 +119,8 @@ export type OnboardingStep = "presets" | "toggle" | "done";
 
 /** Sparkline window: the last 10 sim-minutes. */
 export const HISTORY_WINDOW_S = 600;
+/** Sparkline series length: the last N metrics messages (≈ N s of wall time at METRICS_HZ = 1), at any speed. */
+export const TREND_POINTS = 40;
 export const FEED_LIMIT = 200;
 export const MAX_TOASTS = 2;
 
@@ -113,6 +136,8 @@ export interface AppState {
   twinActive: boolean;
   metrics: MetricsMessage | null;
   history: MetricsPoint[];
+  /** The last {@link TREND_POINTS} metrics points (sparklines), however fast the sim runs. */
+  trend: MetricsPoint[];
   disruptions: DisruptionInfo[];
   feed: FeedItem[];
   toasts: Toast[];
@@ -127,6 +152,12 @@ export interface AppState {
   highlight: { stationIdx: number; until: number } | null;
   /** Preset most recently triggered (cleared by reset / profile change / clear all). */
   activePreset: string | null;
+  /** The map key popover is open (toasts step aside). */
+  keyOpen: boolean;
+  callout: ActiveCallout | null;
+  /** Cumulative AI-vs-Normal totals since the AI took over (null without a twin). */
+  score: AiScoreState | null;
+  disruptionWindows: DisruptionWindow[];
 }
 
 export interface AppActions {
@@ -150,6 +181,10 @@ export interface AppActions {
   setOnboarding(step: OnboardingStep): void;
   setHighlight(stationIdx: number | null, durationMs?: number): void;
   setActivePreset(id: string | null): void;
+  setKeyOpen(open: boolean): void;
+  showCallout(c: ActiveCallout | null): void;
+  /** Record that a disruption ended at sim time `t`. */
+  endDisruptionWindow(id: number, t: number): void;
 }
 
 export type Store = AppState & AppActions;
@@ -167,6 +202,7 @@ const initialState: AppState = {
   twinActive: false,
   metrics: null,
   history: [],
+  trend: [],
   disruptions: [],
   feed: [],
   toasts: [],
@@ -178,7 +214,23 @@ const initialState: AppState = {
   onboarding: "presets",
   highlight: null,
   activePreset: null,
+  keyOpen: false,
+  callout: null,
+  score: null,
+  disruptionWindows: [],
 };
+
+/** Merge the active disruption list into the kept windows (sparkline shading). */
+export function mergeWindows(windows: readonly DisruptionWindow[], active: readonly DisruptionInfo[]): DisruptionWindow[] {
+  const out = windows.map((w) => ({ ...w }));
+  for (const d of active) {
+    const w = out.find((x) => x.id === d.id);
+    if (w) {
+      if (!w.ended) w.end_t = d.end_t;
+    } else out.push({ id: d.id, start_t: d.start_t, end_t: d.end_t, ended: false });
+  }
+  return out.slice(-24);
+}
 
 let cameraNonce = 0;
 let toastSeq = 0;
@@ -194,6 +246,15 @@ export function appendHistory(history: MetricsPoint[], m: MetricsMessage, window
   return kept;
 }
 
+/** Append a metrics point to the sparkline trend (last {@link TREND_POINTS} points; restarts on a sim reset). */
+export function appendTrend(trend: MetricsPoint[], m: MetricsMessage, maxPoints = TREND_POINTS): MetricsPoint[] {
+  const last = trend[trend.length - 1];
+  const base = last && m.t < last.t ? [] : trend;
+  const next = base.length >= maxPoints ? base.slice(base.length - maxPoints + 1) : base.slice();
+  next.push({ t: m.t, live: m.live, twin: m.twin });
+  return next;
+}
+
 export const useStore = create<Store>()((set) => ({
   ...initialState,
   setNetwork: (network) => set({ network, networkError: null }),
@@ -203,9 +264,17 @@ export const useStore = create<Store>()((set) => ({
   patchSettings: (patch) => set((s) => ({ settings: { ...s.settings, ...patch } })),
   setFrameInfo: (clockS, twinActive) =>
     set((s) => (s.clockS === clockS && s.hasFrame && s.twinActive === twinActive ? s : { clockS, twinActive, hasFrame: true })),
-  pushMetrics: (m) => set((s) => ({ metrics: m, history: appendHistory(s.history, m) })),
-  clearHistory: () => set({ history: [], metrics: null }),
-  setDisruptions: (disruptions) => set({ disruptions }),
+  pushMetrics: (m) =>
+    set((s) => ({
+      metrics: m,
+      history: appendHistory(s.history, m),
+      trend: appendTrend(s.trend, m),
+      score: accumulateScore(s.score, m),
+      // A sim reset (clock ran backwards) forgets the old disruption windows.
+      disruptionWindows: s.metrics && m.t < s.metrics.t ? [] : s.disruptionWindows,
+    })),
+  clearHistory: () => set({ history: [], trend: [], metrics: null, score: null, disruptionWindows: [] }),
+  setDisruptions: (disruptions) => set((s) => ({ disruptions, disruptionWindows: mergeWindows(s.disruptionWindows, disruptions) })),
   addFeed: (items) =>
     set((s) => {
       if (items.length === 0) return s;
@@ -231,4 +300,10 @@ export const useStore = create<Store>()((set) => ({
   setHighlight: (stationIdx, durationMs = 2600) =>
     set({ highlight: stationIdx == null ? null : { stationIdx, until: performance.now() + durationMs } }),
   setActivePreset: (activePreset) => set({ activePreset }),
+  setKeyOpen: (keyOpen) => set({ keyOpen }),
+  showCallout: (callout) => set({ callout }),
+  endDisruptionWindow: (id, t) =>
+    set((s) => ({
+      disruptionWindows: s.disruptionWindows.map((w) => (w.id === id && !w.ended ? { ...w, end_t: Math.max(w.start_t, t), ended: true } : w)),
+    })),
 }));

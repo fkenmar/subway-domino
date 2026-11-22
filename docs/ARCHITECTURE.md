@@ -772,6 +772,7 @@ No map/tile library and no API keys. Use CSS Modules, not a UI framework.
 import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   basePath: "/subway",
+  devIndicators: false,
   async redirects() { return [{ source: "/", destination: "/subway", permanent: false, basePath: false }]; },
 };
 export default nextConfig;
@@ -800,7 +801,7 @@ export default nextConfig;
 - **Labels** are shown by `label_rank` with zoom tiers and collision avoidance.
 - **Station circles** are sized by zoom. Crowding is shown as a fill ramp (calm → amber → red) from `station_crowd`, with a pulse when it reaches ≥ 80. Closed stations show a black X.
 - **Trains** are drawn as small rounded capsules in route color, oriented along the track. At high zoom they carry the route letter. Their status bits are shown as icons/halos: tunnel-stuck red halo, held amber ring, short-turning ↺, gap train ✚, rerouted dashed outline.
-- **Positions** follow the §2.7 positioning rule. They are interpolated between the last two frames: if a train's edge is unchanged, lerp `frac`; if the new edge directly continues the old one (old edge's to-station == new edge's from-station), interpolate at constant speed across the station; otherwise snap. Rendering runs at 60 fps with `requestAnimationFrame`, and the dynamic layer only is redrawn each frame.
+- **Positions** follow the §2.7 positioning rule. They are interpolated between the last two frames, matching trains by `train_id` and route: if a train's edge is unchanged, lerp `frac`. If the edge changed, move along the cheapest chain of continuing edges (each edge's to-station == the next one's from-station), at most 6 edges past the old one. The search prefers edges the train's route uses, penalises crossovers, turnbacks and reversals, and caches paths per (prev, next, route). Real discontinuities are cross-faded rather than slid: a new trip in a reused slot (route changed, or `frac` ran backwards), no path, or a path longer than 1.25 · V_MAX_CAP · Δclock + 150 m. Speed may be eased across frame boundaries if positions at frame times stay exact (WP3b). Rendering runs at 60 fps with `requestAnimationFrame`, and the dynamic layer only is redrawn each frame.
 - **Disruptions** are drawn on their target: red hatched segment for a block (local/express track side), amber dashed for a signal delay, black ring for a closure. Each shows a countdown chip.
 - **Interlockings** (small diamonds) and yards (small squares) appear from mid zoom.
 
@@ -808,7 +809,10 @@ export default nextConfig;
 1. **Load.** The static map paints from the geo file before the socket connects. A skeleton shows until then, and trains animate as soon as `welcome` and the first frame arrive.
 2. **Presets.** A visible PresetBar shows 3 presets prominently plus "More…". Clicking one recenters the camera on the preset's `focus` and starts the meltdown.
 3. **AI toggle.** The big ModeToggle "Normal Schedule | AI Dispatcher" pulses after a disruption starts.
-4. **AI mode.** Switching to AI shows the twin comparison in MetricsHUD: the "AI" values beside "Normal would be" values, with deltas colored green/red and per-metric sparklines over the last 10 sim-min. CalloutLayer shows toasts and ActivityFeed lists all actions.
+4. **AI mode.** Switching to AI shows the twin comparison in MetricsHUD (WP3b, 2026-11-22). Every value comes from live and twin metrics only.
+   - It leads with a **since-takeover** comparison: rider-minutes waited, AI vs Normal, plus a one-line verdict ("AI ahead on k of 4"). The verdict has a small hysteresis so it does not flip at the edge.
+   - Per-metric "right now" deltas are green or red. A delta stays neutral grey inside a dead band (|Δ| < 3 % or ±1 unit), so noise does not read as a result.
+   - Each sparkline draws the twin as a solid grey second line and shades the disruption window. CalloutLayer shows toasts and ActivityFeed lists all actions.
 5. **Any target.** Clicking a station, segment, interlocking or river crossing opens a DisruptionPopover listing only the kinds valid for that target, with duration options (until cleared · 10 · 20 · 30 min). Search (by station name and route) flies the camera there.
 6. **InfoModal:**
    - datasets with links (`fgm6-ccue`, `5f5g-n3cz`, `5wq4-mkjj`);

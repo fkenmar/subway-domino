@@ -6,7 +6,7 @@ import { useStore } from "@/lib/store";
 import RouteBullet, { RouteBullets } from "./RouteBullet";
 import styles from "./SearchBox.module.css";
 
-/** Station + route search; choosing a result flies the camera there. */
+/** Station + route search behind an icon (`/` opens it); choosing a result flies the camera there. */
 export default function SearchBox() {
   const net = useStore((s) => s.network);
   const requestCamera = useStore((s) => s.requestCamera);
@@ -15,7 +15,17 @@ export default function SearchBox() {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [expanded, setExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const expand = () => {
+    setExpanded(true);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+  const collapse = () => {
+    setExpanded(false);
+    setOpen(false);
+    setQuery("");
+  };
   const listId = useId();
   const results = useMemo(() => (index && query.trim() ? index.query(query, 8) : []), [index, query]);
 
@@ -26,7 +36,8 @@ export default function SearchBox() {
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
       e.preventDefault();
-      inputRef.current?.focus();
+      setExpanded(true);
+      requestAnimationFrame(() => inputRef.current?.focus());
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -39,9 +50,8 @@ export default function SearchBox() {
     } else {
       requestCamera({ kind: "bbox", bbox: r.bbox });
     }
-    setQuery("");
-    setOpen(false);
     inputRef.current?.blur();
+    collapse();
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -59,19 +69,32 @@ export default function SearchBox() {
         choose(r);
       }
     } else if (e.key === "Escape") {
-      setOpen(false);
-      setQuery("");
       inputRef.current?.blur();
+      collapse();
     }
   };
 
   const showList = open && results.length > 0;
   return (
-    <div className={styles.root} role="search">
-      <label className={styles.field}>
+    <div className={styles.root} role="search" data-expanded={expanded}>
+      <button
+        type="button"
+        className={styles.toggle}
+        aria-label="Search stations and lines"
+        aria-expanded={expanded}
+        title="Search stations and lines (/)"
+        onClick={() => (expanded ? collapse() : expand())}
+        tabIndex={expanded ? -1 : 0}
+      >
+        <svg viewBox="0 0 20 20" aria-hidden="true">
+          <circle cx="8.6" cy="8.6" r="5.4" fill="none" stroke="currentColor" strokeWidth="1.7" />
+          <path d="M12.8 12.8l4.2 4.2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+      </button>
+      <label className={styles.field} aria-hidden={!expanded}>
         <svg className={styles.icon} viewBox="0 0 20 20" aria-hidden="true">
-          <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" strokeWidth="2" />
-          <path d="M13 13l4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          <circle cx="8.6" cy="8.6" r="5.4" fill="none" stroke="currentColor" strokeWidth="1.7" />
+          <path d="M12.8 12.8l4.2 4.2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
         </svg>
         <span className="visually-hidden">Search stations and lines</span>
         <input
@@ -94,8 +117,18 @@ export default function SearchBox() {
             setActive(0);
             setOpen(true);
           }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 120)}
+          tabIndex={expanded ? 0 : -1}
+          onFocus={() => {
+            setExpanded(true);
+            setOpen(true);
+          }}
+          onBlur={(e) => {
+            const empty = e.currentTarget.value.trim() === "";
+            setTimeout(() => {
+              setOpen(false);
+              if (empty) setExpanded(false);
+            }, 120);
+          }}
           onKeyDown={onKeyDown}
         />
         <kbd className={styles.kbd} aria-hidden="true">

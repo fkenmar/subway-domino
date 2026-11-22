@@ -256,6 +256,7 @@ export default function InfoModal() {
               <h2 id={`${baseId}-title`} className={styles.title}>
                 Subway Domino
               </h2>
+              <p className={styles.unaffiliated}>An independent fan-made simulator. Not affiliated with or endorsed by the MTA.</p>
             </div>
             <button type="button" className={styles.close} onClick={() => setOpen(false)} aria-label="Close">
               <svg viewBox="0 0 12 12" aria-hidden="true">

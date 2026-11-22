@@ -1,6 +1,6 @@
 "use client";
 
-import { PROFILE_INFO } from "@/lib/copy";
+import { SPEED_INFO } from "@/lib/copy";
 import { formatClock } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import styles from "./Header.module.css";
@@ -21,50 +21,40 @@ function Logo() {
 
 export default function Header() {
   const clockS = useStore((s) => s.clockS);
-  const profile = useStore((s) => s.settings.profile);
   const speed = useStore((s) => s.settings.speed);
   const setInfoOpen = useStore((s) => s.setInfoOpen);
 
   return (
-    <header className={styles.header}>
+    <header className={styles.bar}>
       <div className={styles.brand}>
+        <Logo />
+        <h1 className={styles.title}>Subway Domino</h1>
         <a className={styles.back} href="https://kenmar.dev" aria-label="Back to kenmar.dev">
-          <span aria-hidden="true">←</span> kenmar.dev
+          <span aria-hidden="true">←</span>
+          <span className={styles.backText}>kenmar.dev</span>
         </a>
-        <div className={styles.titleRow}>
-          <Logo />
-          <div>
-            <h1 className={styles.title}>Subway Domino</h1>
-            <p className={styles.tagline}>Human vs. AI · NYC subway control room</p>
-          </div>
-        </div>
-      </div>
-
-      <div className={styles.search}>
-        <SearchBox />
       </div>
 
       <div className={styles.right}>
         <div className={styles.clock} aria-label="Simulation time">
-          <span className={styles.clockTime}>{formatClock(clockS)}</span>
+          <span className={styles.clockTime}>{formatClock(clockS, { seconds: true })}</span>
           <span className={styles.clockMeta}>
-            {PROFILE_INFO[profile].label}
-            {speed === "pause" ? " · paused" : ` · ${speed}`}
+            {speed === "pause" ? "Paused" : SPEED_INFO[speed].label}
           </span>
         </div>
+        <SearchBox />
         <button
           type="button"
-          className={styles.info}
+          className={styles.iconButton}
           onClick={() => setInfoOpen(true)}
           aria-label="How it works"
           title="How it works: data, simulation, reward and the AI's actions"
         >
           <svg viewBox="0 0 20 20" aria-hidden="true">
-            <circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="1.7" />
-            <path d="M10 9v5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
-            <circle cx="10" cy="6.2" r="1.15" fill="currentColor" />
+            <circle cx="10" cy="10" r="7.6" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M10 9v4.6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+            <circle cx="10" cy="6.4" r="1.05" fill="currentColor" />
           </svg>
-          <span className={styles.infoLabel}>How it works</span>
         </button>
       </div>
     </header>

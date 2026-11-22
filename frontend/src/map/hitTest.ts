@@ -107,6 +107,48 @@ export class HitTester {
     return bestSeg >= 0 ? { idx: bestSeg, dist: Math.sqrt(bestD2) } : null;
   }
 
+  /**
+   * Nearest point of the drawn network (any segment polyline) to a world point,
+   * searched within `radiusM`; beyond that, the nearest station anywhere. Used by
+   * the camera so a deep zoom never ends on an empty screen.
+   */
+  nearestContent(wx: number, wy: number, radiusM: number): { x: number; y: number; d: number } | null {
+    let best: { x: number; y: number; d: number } | null = null;
+    const r = Math.min(radiusM, 6 * CELL_M);
+    const g0x = Math.floor((wx - r) / CELL_M);
+    const g1x = Math.floor((wx + r) / CELL_M);
+    const g0y = Math.floor((wy - r) / CELL_M);
+    const g1y = Math.floor((wy + r) / CELL_M);
+    let bestD2 = r * r;
+    for (let gx = g0x; gx <= g1x; gx++) {
+      for (let gy = g0y; gy <= g1y; gy++) {
+        for (const p of this.pieceCells.get(HitTester.key(gx, gy)) ?? []) {
+          const { xs, ys } = this.net.segments[p.seg].line;
+          const ax = xs[p.i];
+          const ay = ys[p.i];
+          const dx = xs[p.i + 1] - ax;
+          const dy = ys[p.i + 1] - ay;
+          const len2 = dx * dx + dy * dy;
+          let u = len2 > 0 ? ((wx - ax) * dx + (wy - ay) * dy) / len2 : 0;
+          u = u < 0 ? 0 : u > 1 ? 1 : u;
+          const qx = ax + dx * u;
+          const qy = ay + dy * u;
+          const d2 = (qx - wx) ** 2 + (qy - wy) ** 2;
+          if (d2 <= bestD2) {
+            bestD2 = d2;
+            best = { x: qx, y: qy, d: Math.sqrt(d2) };
+          }
+        }
+      }
+    }
+    if (best) return best;
+    for (const st of this.net.stations) {
+      const d = Math.hypot(st.x - wx, st.y - wy);
+      if (!best || d < best.d) best = { x: st.x, y: st.y, d };
+    }
+    return best;
+  }
+
   /** Resolve the target under a screen point (CSS px). */
   hit(camera: Camera, tier: ZoomTier, sx: number, sy: number, opts: HitOptions): HoverTarget | null {
     const tol = opts.coarse ? 16 : 8;

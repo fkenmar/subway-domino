@@ -36,11 +36,12 @@ export default function ModeToggle() {
         type="button"
         role="radio"
         aria-checked={mode === "normal"}
+        aria-label="Normal Schedule"
+        title="Normal Schedule: the timetable and signals only"
         className={styles.option}
         onClick={() => getSession().setMode("normal")}
       >
-        <span className={styles.name}>Normal Schedule</span>
-        <span className={styles.sub}>Timetable &amp; signals only</span>
+        Normal
       </button>
       <span className={styles.aiWrap}>
         <button
@@ -48,16 +49,15 @@ export default function ModeToggle() {
           role="radio"
           aria-checked={mode === "ai"}
           aria-disabled={aiUnavailable}
+          aria-label="AI Dispatcher"
           aria-describedby={aiUnavailable ? "ai-unavailable-tip" : undefined}
+          title={aiUnavailable ? undefined : "AI Dispatcher: the trained RL policy dispatches trains"}
           className={styles.option}
           data-ai="true"
           onClick={chooseAi}
         >
-          <span className={styles.name}>
-            <span className={styles.spark} aria-hidden="true" />
-            AI Dispatcher
-          </span>
-          <span className={styles.sub}>{aiUnavailable ? "Unavailable" : "Trained RL policy"}</span>
+          <span className={styles.spark} aria-hidden="true" />
+          AI
         </button>
         {aiUnavailable && (
           <span id="ai-unavailable-tip" role="tooltip" className={styles.tip}>

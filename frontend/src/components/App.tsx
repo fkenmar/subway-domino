@@ -1,21 +1,21 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { BREAKPOINT_DESKTOP, clampInsets, type ScreenRect, setMeasuredInsets, setOccluders } from "@/lib/layout";
+import { BREAKPOINT_MOBILE, clampInsets, type ScreenRect, setMeasuredInsets, setOccluders } from "@/lib/layout";
 import { loadNetwork } from "@/lib/network";
 import { getSession } from "@/lib/session";
 import { useStore } from "@/lib/store";
 import MapCanvas from "@/map/MapCanvas";
-import ActivityFeed, { ActivityFeedToggle } from "./ActivityFeed";
+import ActivityFeed from "./ActivityFeed";
 import styles from "./App.module.css";
 import CalloutLayer from "./CalloutLayer";
 import ConnectionBanner from "./ConnectionBanner";
-import DisruptionList from "./DisruptionList";
 import DisruptionPopover from "./DisruptionPopover";
 import Header from "./Header";
 import InfoModal from "./InfoModal";
 import MapControls from "./MapControls";
 import MetricsHUD from "./MetricsHUD";
+import ModeCue from "./ModeCue";
 import ModeToggle from "./ModeToggle";
 import Onboarding from "./Onboarding";
 import PresetBar from "./PresetBar";
@@ -41,7 +41,7 @@ function useMeasuredInsets(root: React.RefObject<HTMLDivElement | null>): void {
     const measure = () => {
       const W = window.innerWidth;
       const H = window.innerHeight;
-      const desktop = W >= BREAKPOINT_DESKTOP;
+      const wide = W >= BREAKPOINT_MOBILE;
       let top = 0;
       let bottom = 0;
       let right = 0;
@@ -49,11 +49,11 @@ function useMeasuredInsets(root: React.RefObject<HTMLDivElement | null>): void {
         const r = node.getBoundingClientRect();
         if (r.width === 0 || r.height === 0) continue;
         const role = node.dataset.inset;
-        if (role === "top") top = Math.max(top, r.bottom);
-        else if (role === "bottom" || (role === "side" && !desktop)) bottom = Math.max(bottom, H - r.top);
+        if (role === "top" || (role === "side" && !wide)) top = Math.max(top, r.bottom);
+        else if (role === "bottom") bottom = Math.max(bottom, H - r.top);
         else if (role === "side") right = Math.max(right, W - r.left);
       }
-      const insets = { top: top + 8, right: right + (desktop ? 12 : 6), bottom: bottom + 8, left: desktop ? 20 : 6 };
+      const insets = { top: top + 8, right: right + (wide ? 12 : 6), bottom: bottom + 8, left: wide ? 16 : 6 };
       setMeasuredInsets(clampInsets(insets, W, H), W, H);
       const occluders: ScreenRect[] = [];
       for (const node of el.querySelectorAll<HTMLElement>("[data-occlude]")) {
@@ -143,49 +143,49 @@ export default function App() {
     };
   }, []);
 
-  // The dispatch log starts open where there is room for it.
-  useEffect(() => {
-    if (window.innerWidth >= BREAKPOINT_DESKTOP) useStore.getState().setFeedOpen(true);
-  }, []);
+  // Phones: the open dispatch log takes the whole column and the floating controls step aside.
+  const logOpen = useStore((s) => s.feedOpen);
 
   return (
     <div className={styles.app}>
       <MapCanvas onRetry={() => setLoadAttempt((n) => n + 1)} />
+      <ModeCue />
 
-      <div ref={overlayRef} className={styles.overlay}>
-        <div className={styles.header} data-inset="top" data-occlude>
+      <div ref={overlayRef} className={styles.overlay} data-log={logOpen}>
+        <div className={styles.top} data-inset="top" data-occlude>
           <Header />
         </div>
-        <div className={styles.presets} data-inset="top" data-occlude>
-          <PresetBar />
-        </div>
-        <div className={styles.mapArea}>
-          <ConnectionBanner />
-          <CalloutLayer />
-          <MapControls />
-        </div>
-        <aside className={styles.side} data-inset="side" aria-label="Live status">
-          <div className={styles.sideHud} data-occlude>
+
+        <aside className={styles.side} aria-label="Live status">
+          <div className={styles.score} data-inset="side" data-occlude>
             <MetricsHUD />
           </div>
-          <div className={styles.sideDisruptions} data-occlude>
-            <DisruptionList />
-          </div>
-          <div className={styles.sideFeed} data-occlude>
-            <ActivityFeed />
-          </div>
+          <ActivityFeed />
         </aside>
-        <div className={styles.dock} data-inset="bottom" data-occlude role="toolbar" aria-label="Simulation controls">
-          <div className={styles.dockSpeed}>
+
+        <div className={styles.banner}>
+          <ConnectionBanner />
+        </div>
+
+        <div className={styles.toasts}>
+          <CalloutLayer />
+        </div>
+
+        <div className={styles.bottom}>
+          <div className={styles.breakMenu} data-inset="bottom" data-occlude>
+            <PresetBar />
+          </div>
+          <div className={`glass ${styles.dock}`} data-inset="bottom" data-occlude role="toolbar" aria-label="Simulation controls">
             <SpeedControl />
-          </div>
-          <div className={styles.dockToggle}>
+            <span className={styles.sep} aria-hidden="true" />
             <ModeToggle />
-          </div>
-          <div className={styles.dockMore}>
+            <span className={styles.sep} aria-hidden="true" />
             <ProfileSelect />
             <ResetButton />
-            <ActivityFeedToggle />
+          </div>
+          <div className={styles.tools}>
+            <p className={styles.credit}>Fan-made simulator · Not affiliated with the MTA</p>
+            <MapControls />
           </div>
         </div>
       </div>

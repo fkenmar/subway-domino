@@ -1,84 +1,122 @@
+/*
+ * Docked above the control pill, newest last. Notices and the AI callout look like
+ * subway service-change posters: white sheet, black header bar, big route bullet.
+ */
 .layer {
   display: flex;
   flex-direction: column;
+  /* One shared width and left edge for notices and the poster. */
+  align-items: stretch;
   gap: 8px;
-  width: 380px;
-  max-width: 100%;
-  margin-top: auto;
-  pointer-events: none;
+  transition: opacity var(--dur) ease;
 }
 
+.layer[data-hidden="true"] {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--dur) ease,
+    visibility 0s linear var(--dur);
+}
+
+/* Notices: a white slip with a black label tab. */
 .toast {
   position: relative;
   display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 10px 8px 10px 14px;
-  border-radius: var(--radius);
-  /* Opaque (no backdrop blur): map labels showing through read as text on text. */
-  background: rgb(10, 16, 25);
-  border: 1px solid var(--line-strong);
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-  pointer-events: auto;
-  animation: enter 280ms cubic-bezier(0.2, 0.9, 0.25, 1);
-}
-
-.toast::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--text-dim);
-}
-
-.toast[data-kind="callout"] {
-  border-color: rgba(90, 200, 250, 0.32);
-}
-
-.toast[data-kind="callout"]::before {
-  background: var(--ai);
-  box-shadow: 0 0 12px var(--ai);
-}
-
-.toast[data-kind="error"]::before {
-  background: var(--bad);
-}
-
-.body {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  flex: 1;
-  min-width: 0;
-}
-
-.head {
-  display: flex;
   align-items: center;
-  gap: 7px;
-  min-width: 0;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 5px 0 0;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--poster);
+  color: var(--poster-ink);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.12),
+    0 10px 26px rgba(38, 30, 16, 0.28),
+    0 2px 5px rgba(38, 30, 16, 0.18);
+  pointer-events: auto;
+  transform-origin: bottom center;
+  animation: toast-in 240ms var(--ease-out);
+}
+
+.toast[data-state="leaving"] {
+  animation: toast-out 200ms var(--ease-in) forwards;
+  pointer-events: none;
 }
 
 .kicker {
+  align-self: stretch;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  color: var(--text-muted);
+  flex: none;
+  padding: 0 10px;
+  background: #111111;
+  color: #ffffff;
   font-size: 10.5px;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.toast[data-kind="callout"] .kicker {
-  color: var(--ai);
+.toast[data-kind="error"] .kicker {
+  background: #c8241c;
 }
 
-.toast[data-kind="error"] .kicker {
-  color: #ff7a70;
+.text {
+  margin: 6px 0;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--poster-ink);
+}
+
+/* The AI callout: a full service-change poster. */
+.callout {
+  display: block;
+  width: 100%;
+  padding: 0;
+}
+
+.posterHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  height: 28px;
+  padding: 0 12px;
+  background: #111111;
+  color: #ffffff;
+}
+
+/* Small actions (holds, skips): a lighter grey tab, so the black bar keeps its force. */
+.posterHead[data-major="false"] {
+  height: 24px;
+  background: #dcdcdc;
+  color: #111111;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.posterHead[data-major="false"] .byline {
+  color: #333333;
+}
+
+.posterTitle {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.byline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #cfcfcf;
 }
 
 .spark {
@@ -86,137 +124,159 @@
   height: 7px;
   border-radius: 50%;
   background: var(--ai);
-  box-shadow: 0 0 8px var(--ai);
+  box-shadow: 0 0 6px var(--ai-glow);
 }
 
-.action {
-  color: var(--text);
-  font-size: 12.5px;
+.posterBody {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px 11px 12px;
+}
+
+.line {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.line b {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  font-size: 16.5px;
   font-weight: 700;
-  white-space: nowrap;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--poster-ink);
+}
+
+.reason {
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: var(--poster-muted);
 }
 
-.text {
-  margin: 0;
-  color: var(--text);
-  font-size: 12.5px;
-  line-height: 1.42;
+.posterSide {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.rate {
+  flex: none;
+  padding: 2px 6px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 3px;
+  color: #333333;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.locate,
+.close,
+.cta {
+  flex: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.locate,
+.close {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: #555555;
 }
 
 .locate {
-  display: inline-flex;
-  align-items: center;
-  align-self: flex-start;
-  gap: 5px;
-  padding: 2px 0;
-  border: 0;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
+  color: var(--ai-ink);
 }
 
-.locate:hover {
-  color: var(--text);
+.locate:hover,
+.close:hover {
+  color: #000000;
+  background: rgba(0, 0, 0, 0.07);
 }
 
-.locateShort {
-  display: none;
+.locate:focus-visible,
+.close:focus-visible,
+.cta:focus-visible {
+  outline-color: #111111;
 }
 
 .locate svg {
-  width: 12px;
-  height: 12px;
-}
-
-.close {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 26px;
-  height: 26px;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--text-dim);
-  cursor: pointer;
-}
-
-.close:hover {
-  color: var(--text);
-  background: var(--panel-hover);
+  width: 15px;
+  height: 15px;
 }
 
 .close svg {
-  width: 11px;
-  height: 11px;
+  width: 10px;
+  height: 10px;
 }
 
-/*
- * Older toasts collapse to their headline and one line of text so the stack never
- * buries the map; hovering or focusing one expands it again.
- */
-.toast:nth-last-child(n + 2):not(:hover):not(:focus-within) .text {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-  overflow: hidden;
-  color: var(--text-muted);
+.cta {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  background: #111111;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
-.toast:nth-last-child(n + 2):not(:hover):not(:focus-within) .locate {
-  display: none;
+.cta:hover {
+  background: #333333;
 }
 
-/* Opaque early: a half-transparent card over station labels reads as text on text. */
-@keyframes enter {
-  0% {
+@keyframes toast-in {
+  from {
     opacity: 0;
-    transform: translateY(10px) scale(0.98);
-  }
-  30% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 1;
-    transform: none;
+    transform: translateY(8px) scale(0.98);
   }
 }
 
-@media (max-width: 1099px) {
-  .layer {
-    width: 100%;
-    max-width: 520px;
-    align-self: center;
-  }
-
-  /* Keep the map visible on small screens: only the newest toast. */
-  .toast:nth-last-child(n + 2) {
-    display: none;
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
   }
 }
 
 @media (max-width: 699px) {
-  .toast {
-    padding: 8px 6px 8px 12px;
-  }
-
-  .text {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
-    overflow: hidden;
-    font-size: 12.5px;
-  }
-
-  .locateFull {
+  /* Phones: only the newest card, so the map stays visible. */
+  .toast:not(:last-child) {
     display: none;
   }
 
-  .locateShort {
-    display: inline;
+  .text {
+    font-size: 12px;
+  }
+
+  .rate {
+    display: none;
+  }
+
+  .line b {
+    font-size: 15px;
+  }
+
+  .posterBody {
+    padding: 8px 6px 9px 10px;
   }
 }

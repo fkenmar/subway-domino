@@ -1,0 +1,7 @@
+{
+  "about": "Raw binary frames recorded from the live server at 5x (75 sim-s per frame): [u32 LE byte length][frame]..., gzipped. normal = Normal Schedule from 08:00; ai_lex = the lex-union-sq preset with the AI Dispatcher. Indices refer to this graph_version; re-record with scratchpad record_frames.py if the network is rebuilt.",
+  "graph_version": "e184af352bc6",
+  "recorded": "2026-11-22",
+  "speed": "5x",
+  "files": ["frames_5x_normal.bin.gz", "frames_5x_ai_lex.bin.gz"]
+}

@@ -14,8 +14,8 @@ export const KIND_DOT: Record<DisruptionInfo["kind"], string> = {
   signal_delay: "var(--warn)",
 };
 
-/** Active disruptions with countdowns, locate and clear actions. */
-export default function DisruptionList() {
+/** Active disruptions with countdowns, locate and clear actions (inside "Break the city"). */
+export default function DisruptionList({ onLocate }: { onLocate?: () => void }) {
   const disruptions = useStore((s) => s.disruptions);
   const clockS = useStore((s) => s.clockS);
   const net = useStore((s) => s.network);
@@ -30,13 +30,14 @@ export default function DisruptionList() {
     if (!a) return;
     requestCamera({ kind: "view", view: { cx: a.x, cy: a.y, mPerPx: 4 } });
     select({ target: d.target, wx: a.x, wy: a.y, disruptionId: d.id });
+    onLocate?.();
   };
 
   return (
-    <section className={`panel ${styles.card}`} aria-label="Active disruptions">
+    <section className={styles.active} aria-label="Active disruptions">
       <header className={styles.head}>
         <span className={styles.kicker}>
-          Active disruptions <span className={styles.count}>{disruptions.length}</span>
+          Active now <span className={styles.count}>{disruptions.length}</span>
         </span>
         {disruptions.length > 1 && (
           <button type="button" className={styles.linkButton} onClick={() => getSession().clearAll()}>

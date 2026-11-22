@@ -102,3 +102,44 @@ export function fitWithInsets(bbox: Bbox, width: number, height: number, insets:
   const mPerPx = Math.max((bbox[2] - bbox[0]) / w, (bbox[3] - bbox[1]) / h, 1e-3);
   return centerWithInsets((bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2, mPerPx, insets);
 }
+
+/**
+ * Home view of the whole network. The floating scoreboard covers only the top
+ * of the side column, so the network is centred across the full width (between
+ * the top bar and the bottom controls) whenever no station would land under a
+ * HUD panel; otherwise it slides toward the side-inset fit until it clears.
+ * Without measured panels it falls back to the side-inset fit.
+ */
+export function homeView(
+  bbox: Bbox,
+  points: readonly { x: number; y: number }[],
+  width: number,
+  height: number,
+  insets: Insets,
+  rects: readonly ScreenRect[],
+  padPx = 12,
+): CameraState {
+  const inset = fitWithInsets(bbox, width, height, insets, padPx);
+  if (rects.length === 0 || insets.right <= insets.left) return inset;
+  const full = fitWithInsets(bbox, width, height, { ...insets, right: insets.left }, padPx);
+  const margin = 12;
+  const clear = (v: CameraState): boolean => {
+    for (const p of points) {
+      const sx = (p.x - v.cx) / v.mPerPx + width / 2;
+      const sy = (v.cy - p.y) / v.mPerPx + height / 2;
+      for (const r of rects) {
+        if (sx > r.x0 - margin && sx < r.x1 + margin && sy > r.y0 - margin && sy < r.y1 + margin) return false;
+      }
+    }
+    return true;
+  };
+  for (const t of [0, 0.25, 0.5, 0.75]) {
+    const v: CameraState = {
+      cx: full.cx + (inset.cx - full.cx) * t,
+      cy: full.cy + (inset.cy - full.cy) * t,
+      mPerPx: full.mPerPx + (inset.mPerPx - full.mPerPx) * t,
+    };
+    if (clear(v)) return v;
+  }
+  return inset;
+}

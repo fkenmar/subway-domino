@@ -21,6 +21,12 @@ export const MAX_M_PER_PX_FLOOR = 70;
 
 const RHO = Math.SQRT2;
 
+/** Nearest drawn content (world metres) to a point, searched within `radiusM` (then anywhere). */
+export type ContentProbe = (x: number, y: number, radiusM: number) => { x: number; y: number; d: number } | null;
+
+/** Some network must stay within this fraction of the smaller viewport side from the centre. */
+export const CONTENT_REACH = 0.4;
+
 /**
  * van Wijk & Nuij "smooth and efficient zooming and panning" path between two
  * views (the algorithm behind d3.interpolateZoom). Views are [cx, cy, w] with
@@ -84,6 +90,13 @@ export class Camera implements CameraState {
   version = 0;
   private flight: Flight | null = null;
   private bounds: Bbox | null = null;
+  private probe: ContentProbe | null = null;
+
+  /** Keep part of the network on screen at every zoom (see {@link CONTENT_REACH}). */
+  setContentProbe(probe: ContentProbe | null): void {
+    this.probe = probe;
+    this.constrain();
+  }
 
   /** Viewport size in CSS pixels. */
   setViewport(width: number, height: number): void {
@@ -159,7 +172,8 @@ export class Camera implements CameraState {
     this.flight = null;
     const wx = this.toWorldX(sx);
     const wy = this.toWorldY(sy);
-    const next = clamp(this.mPerPx / factor, this.minMPerPx, this.maxMPerPx);
+    let next = clamp(this.mPerPx / factor, this.minMPerPx, this.maxMPerPx);
+    if (factor > 1) next = this.limitZoomIn(wx, wy, sx, sy, next);
     if (next === this.mPerPx) return;
     this.mPerPx = next;
     // Re-anchor: the same world point must map back to (sx, sy).
@@ -218,13 +232,42 @@ export class Camera implements CameraState {
     return true;
   }
 
+  /**
+   * Deepest scale (≥ `target`, ≤ the current one) for a zoom about world point
+   * (wx, wy) at screen (sx, sy) that still keeps network content near the centre.
+   */
+  private limitZoomIn(wx: number, wy: number, sx: number, sy: number, target: number): number {
+    const probe = this.probe;
+    if (!probe) return target;
+    const side = CONTENT_REACH * Math.min(this.width, this.height);
+    let m = target;
+    for (let i = 0; i < 6; i++) {
+      const cx = wx - (sx - this.width / 2) * m;
+      const cy = wy + (sy - this.height / 2) * m;
+      const near = probe(cx, cy, side * m);
+      if (!near || near.d <= side * m * 1.001) break;
+      m = near.d / side;
+    }
+    return Math.min(Math.max(m, target), this.mPerPx);
+  }
+
   private constrain(): void {
     const b = this.bounds;
-    if (!b) return;
-    // Allow the centre to roam a little past the network edge, never off into the void.
-    const padX = Math.max(2000, (this.width * this.mPerPx) / 3);
-    const padY = Math.max(2000, (this.height * this.mPerPx) / 3);
-    this.cx = clamp(this.cx, b[0] - padX, b[2] + padX);
-    this.cy = clamp(this.cy, b[1] - padY, b[3] + padY);
+    if (b) {
+      // Allow the centre to roam a little past the network edge, never off into the void.
+      const padX = Math.max(2000, (this.width * this.mPerPx) / 3);
+      const padY = Math.max(2000, (this.height * this.mPerPx) / 3);
+      this.cx = clamp(this.cx, b[0] - padX, b[2] + padX);
+      this.cy = clamp(this.cy, b[1] - padY, b[3] + padY);
+    }
+    // Never an empty screen: pull the centre back towards the nearest line.
+    const probe = this.probe;
+    if (!probe || this.width <= 1) return;
+    const reach = CONTENT_REACH * Math.min(this.width, this.height) * this.mPerPx;
+    const near = probe(this.cx, this.cy, reach);
+    if (!near || near.d <= reach) return;
+    const k = (near.d - reach) / near.d;
+    this.cx += (near.x - this.cx) * k;
+    this.cy += (near.y - this.cy) * k;
   }
 }

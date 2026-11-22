@@ -7,7 +7,7 @@
 import type { Camera } from "@/lib/camera";
 import { currentOccluders, type ScreenRect } from "@/lib/layout";
 import { EDGE_YARD_LEAD, type GeoStation, type Network, projectLatLon } from "@/lib/network";
-import { BOROUGH_LABELS, bundleOffset, bundleWidth, FONT_STACK, PALETTE, type ZoomTier, tierFor } from "./style";
+import { BOROUGH_LABELS, bundleOffset, bundleWidth, desaturate, FONT_STACK, mixHex, PALETTE, type ZoomTier, tierFor } from "./style";
 
 /** Extra rendered margin around the viewport (CSS px) so pans reveal pre-drawn map. */
 const PAD_PX = 192;
@@ -53,12 +53,50 @@ export interface PlacedLabel {
   oy: number;
   /** Label box relative to the projected station point (CSS px). */
   box: LabelBox;
+  /** Hub / high-rank label: always drawn; minor labels give way to train pills. */
+  major: boolean;
 }
+
+/** Same-name stations closer than this (CSS px) share one label. */
+const SAME_NAME_PX = 140;
 
 type Ctx2D = CanvasRenderingContext2D;
 
+/** Dark text halo (stroke width, CSS px): lines, transfer links and pills never strike through a label. */
+const LABEL_HALO_PX = 5;
+
+
 /** Screen-space interlocking marker offset from its station, so both stay clickable. */
 /** "72 St", "86 St", "1 Av": names repeated across the city. */
+/** Hubs and stations of multi-station complexes (transfer points) are drawn as white rings. */
+export function isInterchange(net: Network, s: number): boolean {
+  const st = net.stations[s];
+  if (!st) return false;
+  return st.hub || (net.complexes[st.complex]?.stations.length ?? 0) > 1;
+}
+
+const transferCache = new WeakMap<Network, Uint8Array>();
+
+/**
+ * Transfer stations, drawn as white circles joined by white connectors (printed-map style):
+ * stations of a complex with more than one station. Every other station is a black dot.
+ *
+ * The printed map also draws express stops as white circles, but `network_geo.json` has no
+ * per-route stopping pattern (station `routes` include late-night and peak-direction service),
+ * so the map can't tell an express stop from a local one reliably. A neutral black dot is less
+ * misleading than a wrong white circle (WP3c critique #4).
+ */
+export function transferStations(net: Network): Uint8Array {
+  let out = transferCache.get(net);
+  if (out) return out;
+  out = new Uint8Array(net.stations.length);
+  for (const st of net.stations) {
+    out[st.idx] = (net.complexes[st.complex]?.stations.length ?? 0) > 1 ? 1 : 0;
+  }
+  transferCache.set(net, out);
+  return out;
+}
+
 const BARE_NUMBERED_STREET = /^\d+(?:st|nd|rd|th)? (?:St|Av)$/;
 
 /** Half the side of a yard's square marker (CSS px). */
@@ -237,6 +275,7 @@ export class BaseLayer {
   private textWidths = new Map<string, number>();
   /** Labels placed in the latest render (drawn above the dynamic layer). */
   labels: PlacedLabel[] = [];
+  /** Per-label opacity (minor labels yield to passing pills). */
 
   constructor(private readonly createCanvas: () => HTMLCanvasElement) {}
 
@@ -346,11 +385,9 @@ export class BaseLayer {
     }));
 
     this.drawLand(ctx, net, proj);
-    this.drawGrid(ctx, proj, wx0, wy0, wx1, wy1, m);
     const boroughBoxes = this.drawBoroughs(ctx, net, proj, tier);
     this.drawYardLeads(ctx, net, proj, tier);
     this.drawSegments(ctx, net, proj, tier, wx0, wy0, wx1, wy1);
-    this.drawTransfers(ctx, net, proj, tier);
     this.drawStations(ctx, net, proj, tier, wx0, wy0, wx1, wy1);
     this.drawInterlockings(ctx, net, proj, tier);
     this.drawYards(ctx, net, proj, tier);
@@ -416,25 +453,6 @@ export class BaseLayer {
     ctx.stroke();
   }
 
-  /** Faint 1 km / 5 km reference grid — the "control room" texture. */
-  private drawGrid(ctx: Ctx2D, proj: Proj, x0: number, y0: number, x1: number, y1: number, m: number): void {
-    const step = m > 30 ? 5000 : m > 6 ? 1000 : 500;
-    ctx.beginPath();
-    for (let x = Math.ceil(x0 / step) * step; x <= x1; x += step) {
-      const sx = Math.round(proj.sx(x)) + 0.5;
-      ctx.moveTo(sx, proj.sy(y1));
-      ctx.lineTo(sx, proj.sy(y0));
-    }
-    for (let y = Math.ceil(y0 / step) * step; y <= y1; y += step) {
-      const sy = Math.round(proj.sy(y)) + 0.5;
-      ctx.moveTo(proj.sx(x0), sy);
-      ctx.lineTo(proj.sx(x1), sy);
-    }
-    ctx.strokeStyle = PALETTE.grid;
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  }
-
   private ensureScratch(n: number): void {
     if (this.scratchX.length < n) {
       this.scratchX = new Float64Array(n * 2);
@@ -476,7 +494,8 @@ export class BaseLayer {
     }
     ctx.restore();
 
-    // 2) Dark casing under each bundle, batched by bundle size.
+    // 2) Printed-map casing under each bundle: a faint warm hairline, then a light band whose
+    //    colour also shows through the gaps between parallel lines. Batched by bundle size.
     const bySize = new Map<number, number[]>();
     for (const i of visible) {
       const n = Math.max(1, net.segments[i].colors.length);
@@ -484,15 +503,20 @@ export class BaseLayer {
       list.push(i);
       bySize.set(n, list);
     }
-    ctx.strokeStyle = PALETTE.casing;
-    for (const [n, list] of bySize) {
-      ctx.lineWidth = bundleWidth(tier, n) + 2 * tier.casingExtra;
-      ctx.beginPath();
-      for (const i of list) {
-        const p = projected.get(i);
-        if (p) appendOffsetPath(ctx, p.xs, p.ys, p.n, 0);
+    for (const [extra, color] of [
+      [tier.casingExtra + 0.75, PALETTE.casingEdge],
+      [tier.casingExtra, PALETTE.casing],
+    ] as const) {
+      ctx.strokeStyle = color;
+      for (const [n, list] of bySize) {
+        ctx.lineWidth = bundleWidth(tier, n) + 2 * extra;
+        ctx.beginPath();
+        for (const i of list) {
+          const p = projected.get(i);
+          if (p) appendOffsetPath(ctx, p.xs, p.ys, p.n, 0);
+        }
+        ctx.stroke();
       }
-      ctx.stroke();
     }
 
     // 3) Route-colour strokes, batched by colour.
@@ -508,7 +532,8 @@ export class BaseLayer {
     }
     ctx.lineWidth = tier.lineWidth;
     for (const [color, list] of byColor) {
-      ctx.strokeStyle = color;
+      // Ribbons slightly softened towards the land on wide tiers, so the outlined trains read first.
+      ctx.strokeStyle = mixHex(desaturate(color, tier.lineDesat), PALETTE.land, 1 - tier.lineAlpha);
       ctx.beginPath();
       for (const { seg, offset } of list) {
         const p = projected.get(seg);
@@ -519,18 +544,16 @@ export class BaseLayer {
   }
 
   /**
-   * Transfer passages between the stations of one complex: slim cased links, so
-   * long passages (Times Sq ↔ Port Authority is ~300 m) read as walkways rather
-   * than as another track.
+   * Transfer passages between the stations of one complex, as on the printed map: one fat
+   * white pill with a black outline, as wide as the station circles it joins.
    */
-  private drawTransfers(ctx: Ctx2D, net: Network, proj: Proj, tier: ZoomTier): void {
-    if (tier.id < 2) return;
+  private transferLinks(net: Network, proj: Proj, x0: number, y0: number, x1: number, y1: number): Path2D {
     const links = new Path2D();
     for (const c of net.complexes) {
       if (c.stations.length < 2) continue;
       const rep = net.complexRep[c.idx];
       const r = net.stations[rep];
-      if (!r) continue;
+      if (!r || r.x < x0 - 600 || r.x > x1 + 600 || r.y < y0 - 600 || r.y > y1 + 600) continue;
       for (const s of c.stations) {
         if (s === rep) continue;
         const st = net.stations[s];
@@ -539,38 +562,57 @@ export class BaseLayer {
         links.lineTo(proj.sx(st.x), proj.sy(st.y));
       }
     }
-    const core = Math.max(1.8, tier.stationRadius * 0.7);
-    ctx.strokeStyle = PALETTE.stationStroke;
-    ctx.lineWidth = core + 2 * tier.stationStroke + 1;
-    ctx.stroke(links);
-    ctx.strokeStyle = PALETTE.transfer;
-    ctx.lineWidth = core;
-    ctx.stroke(links);
+    return links;
   }
 
   private drawStations(ctx: Ctx2D, net: Network, proj: Proj, tier: ZoomTier, x0: number, y0: number, x1: number, y1: number): void {
-    const local = new Path2D();
-    const hubs = new Path2D();
+    const dots = new Path2D();
+    const rings = new Path2D();
+    const transfer = transferStations(net);
+    // Citywide: only the major transfer complexes get circles (no local dots, no connectors).
+    const city = tier.id === 0;
+    const ringR = city ? tier.hubRadius : tier.hubRadius * 0.92;
     for (const st of net.stations) {
       if (st.x < x0 || st.x > x1 || st.y < y0 || st.y > y1) continue;
-      if (!st.hub && !tier.showLocalStations) continue;
+      const ring = transfer[st.idx] === 1;
+      if (!ring && !tier.showLocalStations) continue;
+      if (ring && city && !st.hub) continue;
       const x = proj.sx(st.x);
       const y = proj.sy(st.y);
-      const r = st.hub ? tier.hubRadius : tier.stationRadius;
-      const path = st.hub ? hubs : local;
-      path.moveTo(x + r, y);
-      path.arc(x, y, r, 0, Math.PI * 2);
+      if (ring) {
+        rings.moveTo(x + ringR, y);
+        rings.arc(x, y, ringR, 0, Math.PI * 2);
+      } else {
+        const r = tier.stationRadius * 0.92;
+        dots.moveTo(x + r, y);
+        dots.arc(x, y, r, 0, Math.PI * 2);
+      }
     }
-    ctx.lineWidth = tier.stationStroke * 2;
+    // Stations: black dots with a hairline light rim (so they hold on the darker ribbons).
+    ctx.lineWidth = Math.max(0.8, tier.stationStroke * 0.8);
     ctx.strokeStyle = PALETTE.stationStroke;
-    ctx.stroke(local);
+    ctx.stroke(dots);
     ctx.fillStyle = PALETTE.stationFill;
-    ctx.fill(local);
-    ctx.lineWidth = tier.stationStroke * 2.2;
+    ctx.fill(dots);
+    // Transfers: white circles and connectors drawn as one shape with one black outline
+    // (all outlines first, then all white fills on top).
+    const rim = Math.max(1.1, tier.stationStroke * 1.25);
+    const links = city ? null : this.transferLinks(net, proj, x0, y0, x1, y1);
+    ctx.lineCap = "round";
     ctx.strokeStyle = PALETTE.hubStroke;
-    ctx.stroke(hubs);
+    if (links) {
+      ctx.lineWidth = 2 * ringR + 2 * rim;
+      ctx.stroke(links);
+    }
+    ctx.lineWidth = 2 * rim;
+    ctx.stroke(rings);
     ctx.fillStyle = PALETTE.hubFill;
-    ctx.fill(hubs);
+    ctx.fill(rings);
+    if (links) {
+      ctx.strokeStyle = PALETTE.hubFill;
+      ctx.lineWidth = 2 * ringR;
+      ctx.stroke(links);
+    }
   }
 
   private drawInterlockings(ctx: Ctx2D, net: Network, proj: Proj, tier: ZoomTier): void {
@@ -599,7 +641,7 @@ export class BaseLayer {
     }
     ctx.save();
     ctx.globalAlpha = subtle ? 0.6 : 1;
-    ctx.strokeStyle = "rgba(143, 179, 255, 0.45)";
+    ctx.strokeStyle = "rgba(62, 85, 120, 0.5)";
     ctx.lineWidth = 1;
     ctx.stroke(leaders);
     ctx.fillStyle = PALETTE.interlocking;
@@ -658,6 +700,53 @@ export class BaseLayer {
    * keeps its label on screen, and an off-screen one (in the pan padding) keeps its
    * label off screen.
    */
+  /**
+   * Small boxes along every visible route line and transfer link (snapshot px),
+   * so labels can prefer spots that no line runs through.
+   */
+  private lineBoxes(net: Network, proj: Proj, tier: ZoomTier, areaW: number, areaH: number): LabelBox[] {
+    const out: LabelBox[] = [];
+    const step = 5;
+    const addRun = (x0: number, y0: number, x1: number, y1: number, half: number) => {
+      if ((x0 < -10 && x1 < -10) || (y0 < -10 && y1 < -10) || (x0 > areaW + 10 && x1 > areaW + 10) || (y0 > areaH + 10 && y1 > areaH + 10)) return;
+      const len = Math.hypot(x1 - x0, y1 - y0);
+      const n = Math.max(1, Math.ceil(len / step));
+      for (let k = 0; k <= n; k++) {
+        const x = x0 + ((x1 - x0) * k) / n;
+        const y = y0 + ((y1 - y0) * k) / n;
+        out.push({ x0: x - half, y0: y - half, x1: x + half, y1: y + half });
+      }
+    };
+    for (const seg of net.segments) {
+      const xs = seg.line.xs;
+      const ys = seg.line.ys;
+      const half = bundleWidth(tier, Math.max(1, seg.colors.length)) / 2 + 0.5;
+      let px = proj.sx(xs[0]);
+      let py = proj.sy(ys[0]);
+      for (let i = 1; i < xs.length; i++) {
+        const qx = proj.sx(xs[i]);
+        const qy = proj.sy(ys[i]);
+        addRun(px, py, qx, qy, half);
+        px = qx;
+        py = qy;
+      }
+    }
+    if (tier.id >= 2) {
+      const half = Math.max(1.6, tier.stationRadius * 0.6) / 2 + Math.max(1.1, tier.stationStroke * 1.5);
+      for (const c of net.complexes) {
+        if (c.stations.length < 2) continue;
+        const r = net.stations[net.complexRep[c.idx]];
+        if (!r) continue;
+        for (const si of c.stations) {
+          const st = net.stations[si];
+          if (!st || st === r) continue;
+          addRun(proj.sx(r.x), proj.sy(r.y), proj.sx(st.x), proj.sy(st.y), half);
+        }
+      }
+    }
+    return out;
+  }
+
   private placeLabels(
     ctx: Ctx2D,
     net: Network,
@@ -668,6 +757,34 @@ export class BaseLayer {
     obstacles: readonly LabelBox[],
   ): PlacedLabel[] {
     const out: PlacedLabel[] = [];
+    // Route lines and transfer links: labels prefer spots no line crosses (a soft obstacle).
+    const lineCell = 32;
+    const lineGrid = new Map<number, LabelBox[]>();
+    const lkey = (gx: number, gy: number) => gx * 100003 + gy;
+    for (const b of this.lineBoxes(net, proj, tier, areaW, areaH)) {
+      for (let gx = Math.floor(b.x0 / lineCell); gx <= Math.floor(b.x1 / lineCell); gx++) {
+        for (let gy = Math.floor(b.y0 / lineCell); gy <= Math.floor(b.y1 / lineCell); gy++) {
+          const k = lkey(gx, gy);
+          const list = lineGrid.get(k);
+          if (list) list.push(b);
+          else lineGrid.set(k, [b]);
+        }
+      }
+    }
+    const crossesLine = (b: LabelBox): boolean => {
+      for (let gx = Math.floor(b.x0 / lineCell); gx <= Math.floor(b.x1 / lineCell); gx++) {
+        for (let gy = Math.floor(b.y0 / lineCell); gy <= Math.floor(b.y1 / lineCell); gy++) {
+          for (const o of lineGrid.get(lkey(gx, gy)) ?? []) {
+            if (b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0) return true;
+          }
+        }
+      }
+      return false;
+    };
+    // Same-name stations close together ("23 St" ×4, "34 St-Penn Station" ×2): label the first (best-ranked) only.
+    const placedNames = new Map<string, { x: number; y: number }[]>();
+    const nameNearby = (text: string, x: number, y: number): boolean =>
+      (placedNames.get(text) ?? []).some((p) => Math.hypot(p.x - x, p.y - y) < SAME_NAME_PX);
     const cell = 64;
     // Each grid entry remembers whether it is a label (clearance applies) or an obstacle.
     const grid = new Map<number, { b: LabelBox; label: boolean }[]>();
@@ -719,11 +836,26 @@ export class BaseLayer {
     const vx1 = areaW - PAD_PX;
     const vy1 = areaH - PAD_PX;
 
-    /** Try the six anchor positions around a marker of radius r; true when placed. */
-    const tryPlace = (wx: number, wy: number, r: number, text: string, font: string, size: number, color: string, gap: number): boolean => {
+    /**
+     * Try the six anchor positions around a marker of radius r; true when placed.
+     * A spot clear of route lines wins; `overLines` allows a line-crossed spot as a
+     * last resort (important labels), otherwise the label is dropped.
+     */
+    const tryPlace = (
+      wx: number,
+      wy: number,
+      r: number,
+      text: string,
+      font: string,
+      size: number,
+      color: string,
+      gap: number,
+      overLines: boolean,
+    ): boolean => {
       const x = proj.sx(wx);
       const y = proj.sy(wy);
       if (x < 0 || y < 0 || x > areaW || y > areaH) return false;
+      if (nameNearby(text, x, y)) return false;
       const onScreen = x >= vx0 && x <= vx1 && y >= vy0 && y <= vy1;
       const w = this.measure(ctx, font, text);
       const h = size + 2;
@@ -735,47 +867,64 @@ export class BaseLayer {
         [x - r * 0.7, y - r - h / 2, "right"],
         [x - r * 0.7, y + r + h / 2, "right"],
       ];
-      for (const [lx, ly, align] of options) {
-        const bx0 = align === "left" ? lx - 1 : lx - w - 1;
-        const box = { x0: bx0, y0: ly - h / 2, x1: bx0 + w + 2, y1: ly + h / 2 };
-        if (box.x0 < 0 || box.y0 < 0 || box.x1 > areaW || box.y1 > areaH) continue;
-        const inside = box.x0 >= vx0 && box.x1 <= vx1 && box.y0 >= vy0 && box.y1 <= vy1;
-        const outside = box.x1 <= vx0 || box.x0 >= vx1 || box.y1 <= vy0 || box.y0 >= vy1;
-        if (onScreen ? !inside : !outside) continue;
-        if (collides(box, gap)) continue;
-        insert(box, true);
-        out.push({ text, font, color, align, wx, wy, ox: lx - x, oy: ly - y, box: { x0: box.x0 - x, y0: box.y0 - y, x1: box.x1 - x, y1: box.y1 - y } });
-        return true;
+      for (let pass = 0; pass < (overLines ? 2 : 1); pass++) {
+        for (const [lx, ly, align] of options) {
+          const bx0 = align === "left" ? lx - 1 : lx - w - 1;
+          const box = { x0: bx0, y0: ly - h / 2, x1: bx0 + w + 2, y1: ly + h / 2 };
+          if (box.x0 < 0 || box.y0 < 0 || box.x1 > areaW || box.y1 > areaH) continue;
+          const inside = box.x0 >= vx0 && box.x1 <= vx1 && box.y0 >= vy0 && box.y1 <= vy1;
+          const outside = box.x1 <= vx0 || box.x0 >= vx1 || box.y1 <= vy0 || box.y0 >= vy1;
+          if (onScreen ? !inside : !outside) continue;
+          if (collides(box, gap)) continue;
+          if (pass === 0 && crossesLine(box)) continue;
+          insert(box, true);
+          const list = placedNames.get(text);
+          if (list) list.push({ x, y });
+          else placedNames.set(text, [{ x, y }]);
+          out.push({
+            text,
+            font,
+            color,
+            align,
+            wx,
+            wy,
+            ox: lx - x,
+            oy: ly - y,
+            box: { x0: box.x0 - x, y0: box.y0 - y, x1: box.x1 - x, y1: box.y1 - y },
+            major: color === PALETTE.label,
+          });
+          return true;
+        }
       }
       return false;
     };
 
-    const placeStation = (st: GeoStation, gap: number): boolean => {
+    const placeStation = (st: GeoStation, gap: number, overLines: boolean): boolean => {
       const major = st.hub || st.label_rank < 12;
       const size = major ? tier.hubLabelSize : tier.labelSize;
       const font = `${major ? 700 : 500} ${size}px ${FONT_STACK}`;
       const r = (st.hub ? tier.hubRadius : tier.stationRadius) + 3;
-      return tryPlace(st.x, st.y, r, st.name, font, size, major ? PALETTE.label : PALETTE.labelMuted, gap);
+      return tryPlace(st.x, st.y, r, st.name, font, size, major ? PALETTE.label : PALETTE.labelMuted, gap, overLines);
     };
 
     const candidates = labelCandidates(net, tier).sort((a, b) => a.label_rank - b.label_rank);
     const rest: GeoStation[] = [];
     for (const st of candidates) {
-      if (st.label_rank < tier.labelMaxRank) placeStation(st, 0);
+      if (st.label_rank < tier.labelMaxRank) placeStation(st, 0, true);
       else rest.push(st);
     }
     if (tier.labelFillGap > 0) {
       for (const st of rest) {
         if (st.label_rank >= tier.labelFillMaxRank) continue;
         if (tier.labelFillNamedOnly && BARE_NUMBERED_STREET.test(st.name)) continue;
-        placeStation(st, tier.labelFillGap);
+        placeStation(st, tier.labelFillGap, false);
       }
     }
 
     if (tier.showYards && tier.id >= 2) {
       const size = tier.labelSize - 1;
       const font = `600 ${size}px ${FONT_STACK}`;
-      for (const yd of net.yards) tryPlace(yd.x, yd.y, yardHalfSize(tier) + 3, yd.name, font, size, PALETTE.yardLabel, 0);
+      for (const yd of net.yards) tryPlace(yd.x, yd.y, yardHalfSize(tier) + 3, yd.name, font, size, PALETTE.yardLabel, 0, false);
     }
     return out;
   }
@@ -789,10 +938,11 @@ export class BaseLayer {
     ctx.save();
     ctx.textBaseline = "middle";
     ctx.lineJoin = "round";
-    ctx.lineWidth = 3.4;
+    ctx.lineWidth = LABEL_HALO_PX;
     ctx.strokeStyle = PALETTE.labelHalo;
     let font = "";
-    for (const l of labels) {
+    for (let li = 0; li < labels.length; li++) {
+      const l = labels[li];
       const px = camera.toScreenX(l.wx);
       const py = camera.toScreenY(l.wy);
       const x = px + l.ox;
@@ -804,6 +954,7 @@ export class BaseLayer {
         font = l.font;
         ctx.font = font;
       }
+      // Labels sit above the trains at full strength, on their cream halo (never ghosted).
       ctx.textAlign = l.align;
       ctx.strokeText(l.text, x, y);
       ctx.fillStyle = l.color;

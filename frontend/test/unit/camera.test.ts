@@ -1,6 +1,6 @@
 /** Map camera (§6): pan/zoom about the cursor, zoom range, fly-to. */
 import { describe, expect, it } from "vitest";
-import { Camera, easeInOutCubic, MAX_M_PER_PX_FLOOR, MIN_M_PER_PX, zoomPath } from "@/lib/camera";
+import { Camera, CONTENT_REACH, easeInOutCubic, MAX_M_PER_PX_FLOOR, MIN_M_PER_PX, zoomPath } from "@/lib/camera";
 
 function camera(): Camera {
   const c = new Camera();
@@ -140,5 +140,42 @@ describe("zoomPath (van Wijk & Nuij)", () => {
     expect(easeInOutCubic(1)).toBe(1);
     expect(easeInOutCubic(0.5)).toBeCloseTo(0.5);
     expect(easeInOutCubic(0.25) + easeInOutCubic(0.75)).toBeCloseTo(1);
+  });
+});
+
+describe("content clamp (the screen never shows an empty map)", () => {
+  // One straight line along y = 0 from x = 0 to x = 10 km.
+  const probe = (x: number, y: number) => {
+    const qx = Math.min(10_000, Math.max(0, x));
+    return { x: qx, y: 0, d: Math.hypot(x - qx, y) };
+  };
+  const make = () => {
+    const cam = new Camera();
+    cam.setViewport(1000, 800);
+    cam.setContentProbe(probe);
+    return cam;
+  };
+
+  it("stops zooming in once the line would leave the screen", () => {
+    const cam = make();
+    cam.set({ cx: 5000, cy: 3000, mPerPx: 20 }); // line 3 km below the centre: on screen at 20 m/px
+    for (let i = 0; i < 40; i++) cam.zoomAt(500, 400, 1.5);
+    const reach = CONTENT_REACH * 800 * cam.mPerPx;
+    expect(Math.abs(cam.cy)).toBeLessThanOrEqual(reach + 1);
+    expect(cam.mPerPx).toBeGreaterThan(MIN_M_PER_PX);
+  });
+
+  it("still zooms all the way in on top of the network", () => {
+    const cam = make();
+    cam.set({ cx: 5000, cy: 0, mPerPx: 20 });
+    for (let i = 0; i < 40; i++) cam.zoomAt(500, 400, 1.5);
+    expect(cam.mPerPx).toBeCloseTo(MIN_M_PER_PX);
+  });
+
+  it("pulls a pan back towards the network", () => {
+    const cam = make();
+    cam.set({ cx: 5000, cy: 0, mPerPx: 2 });
+    cam.panBy(0, 5000); // drag the map far down: the centre heads north, away from the line
+    expect(Math.abs(cam.cy)).toBeLessThanOrEqual(CONTENT_REACH * 800 * 2 + 1e-6);
   });
 });

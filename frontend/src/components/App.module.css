@@ -1,14 +1,8 @@
 /*
- * Page layout: a full-bleed canvas map with the HUD on a pointer-transparent grid.
- *
- * Desktop (≥ 1100 px)          Tablet / phone (< 1100 px)
- * ┌──────── header ────────┐    ┌──── header ────┐
- * │ presets       │  side  │    │    presets     │
- * │ map area      │ (HUD,  │    │    map area    │
- * │ (banners,     │ disr., │    │    side (HUD)  │
- * │  callouts)    │ log)   │    │    dock        │
- * │ dock          │        │    └────────────────┘
- * └───────────────┴────────┘
+ * Immersive layout (WP3b): the map runs edge to edge; the chrome floats over it
+ * in a few compact glass pieces — a slim top bar, the scoreboard (top right),
+ * "Break the city" (bottom left), the control pill (bottom centre), map tools
+ * (bottom right) and transient toasts / drawers.
  */
 
 .app {
@@ -22,213 +16,237 @@
   position: absolute;
   inset: 0;
   z-index: 10;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-  grid-template-areas:
-    "header header"
-    "presets side"
-    "map side"
-    "dock side";
-  gap: 12px 20px;
-  padding: calc(14px + var(--safe-top)) 20px calc(16px + var(--safe-bottom));
   pointer-events: none;
 }
 
-/* Scrims: darken the map behind the header and the dock so the HUD stays legible. */
-.overlay::before,
-.overlay::after {
-  content: "";
+/* The top bar is a platform sign: a full-width black band with the thin white rule near its top edge. */
+.top {
   position: absolute;
+  z-index: 3;
+  top: 0;
   left: 0;
   right: 0;
-  z-index: -1;
-  pointer-events: none;
-}
-
-.overlay::before {
-  top: 0;
-  height: 200px;
-  background: linear-gradient(
-    to bottom,
-    rgba(7, 11, 17, 0.94) 0%,
-    rgba(7, 11, 17, 0.82) 38%,
-    rgba(7, 11, 17, 0.35) 72%,
-    rgba(7, 11, 17, 0) 100%
-  );
-}
-
-.overlay::after {
-  bottom: 0;
-  height: 150px;
-  background: linear-gradient(to top, rgba(7, 11, 17, 0.88) 0%, rgba(7, 11, 17, 0.5) 50%, rgba(7, 11, 17, 0) 100%);
-}
-
-.header {
-  grid-area: header;
-  min-width: 0;
-}
-
-.presets {
-  grid-area: presets;
-  align-self: start;
-  min-width: 0;
-}
-
-.mapArea {
-  grid-area: map;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
-  min-width: 0;
-  min-height: 0;
-}
-
-.side {
-  grid-area: side;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-  min-height: 0;
-}
-
-.sideHud,
-.sideDisruptions {
-  flex: none;
-  min-width: 0;
-}
-
-.sideDisruptions:empty {
-  display: none;
-}
-
-/* The log takes its content height and scrolls once it would overflow the column. */
-.sideFeed {
-  display: flex;
-  flex-direction: column;
-  flex: 0 1 auto;
-  min-width: 0;
-  min-height: 0;
-}
-
-.dock {
-  grid-area: dock;
-  justify-self: center;
-  display: grid;
-  grid-template-columns: auto auto auto;
-  grid-template-areas: "speed toggle more";
-  align-items: center;
-  gap: 10px;
-  padding: 7px;
-  border-radius: 999px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow-lg);
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
+  padding-top: var(--safe-top);
+  background: #0f0f0f;
+  box-shadow:
+    inset 0 4px 0 0 #0f0f0f,
+    inset 0 5px 0 0 rgba(255, 255, 255, 0.9),
+    0 2px 0 rgba(0, 0, 0, 0.12),
+    0 6px 18px rgba(38, 30, 16, 0.22);
   pointer-events: auto;
 }
 
-.dockSpeed {
-  grid-area: speed;
+.side {
+  position: absolute;
+  z-index: 2;
+  top: calc(var(--bar-h) + var(--safe-top) + 12px);
+  right: var(--gutter);
+  bottom: calc(var(--gutter) + var(--dock-h) + 18px + var(--safe-bottom));
+  width: 316px;
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  pointer-events: none;
 }
 
-.dockToggle {
-  grid-area: toggle;
+.score {
+  pointer-events: auto;
+}
+
+/* No transform here: the at-capacity card and the idle veil are fixed to the viewport. */
+.banner {
+  position: absolute;
+  z-index: 4;
+  top: calc(var(--bar-h) + var(--safe-top) + 10px);
+  left: var(--gutter);
+  right: var(--gutter);
   display: flex;
   justify-content: center;
-  min-width: 0;
+  pointer-events: none;
 }
 
-.dockMore {
-  grid-area: more;
+/* Toasts dock above the control pill (centre), clear of the map key and the dispatch log. */
+.toasts {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: calc(var(--gutter) + var(--dock-h) + 12px + var(--safe-bottom));
+  width: min(440px, calc(100vw - 2 * var(--gutter) - 640px));
+  min-width: 340px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.bottom {
+  position: absolute;
+  z-index: 3;
+  left: var(--gutter);
+  right: var(--gutter);
+  bottom: calc(var(--gutter) + var(--safe-bottom));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.breakMenu {
+  justify-self: start;
+  pointer-events: auto;
+}
+
+.dock {
+  justify-self: center;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+  height: var(--dock-h);
+  padding: 4px 5px 0;
+  border-radius: var(--radius);
+  pointer-events: auto;
 }
 
-/* Laptop widths: a narrower right column (the controls go icon-only, see Controls.module.css). */
-@media (max-width: 1319px) and (min-width: 1100px) {
-  .overlay {
-    grid-template-columns: minmax(0, 1fr) 336px;
+.sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: rgba(255, 255, 255, 0.16);
+  flex: none;
+}
+
+.tools {
+  position: relative;
+  justify-self: end;
+  pointer-events: auto;
+}
+
+/* Quiet corner credit on the map, above the map tools: a small cream chip, so it never overprints lines or labels. */
+.credit {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  margin: 0;
+  padding: 2px 6px;
+  border-radius: 2px;
+  background: rgba(243, 238, 228, 0.96);
+  box-shadow: 0 0 0 1px rgba(80, 70, 50, 0.14);
+  font-size: 10.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: #4f4a42;
+  pointer-events: none;
+}
+
+/* The scoreboard column (and the dispatch log in it) ends above the credit chip. */
+@media (min-width: 960px) {
+  .side {
+    bottom: calc(var(--gutter) + var(--dock-h) + 44px + var(--safe-bottom));
   }
 }
 
-/* Tablets and phones: HUD strip and a two-row dock along the bottom. */
+@media (max-width: 959px) {
+  .credit {
+    display: none;
+  }
+}
+
+/* Tablets: the scoreboard narrows. */
 @media (max-width: 1099px) {
-  .overlay {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  .side {
+    width: 300px;
+  }
+}
+
+/* Narrow tablets: the control pill no longer fits between "Break the city" and the map
+   tools, so it takes its own row, centred, under them. */
+@media (min-width: 700px) and (max-width: 959px) {
+  .bottom {
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "header"
-      "presets"
-      "map"
-      "side"
-      "dock";
-    gap: 10px;
-    padding: calc(12px + var(--safe-top)) 14px calc(12px + var(--safe-bottom));
+      "break tools"
+      "dock dock";
+    row-gap: 10px;
   }
 
-  .overlay::before {
-    height: 230px;
+  .breakMenu {
+    grid-area: break;
   }
 
-  .overlay::after {
-    height: 320px;
+  .tools {
+    grid-area: tools;
+  }
+
+  .dock {
+    grid-area: dock;
+  }
+
+  .toasts {
+    bottom: calc(var(--gutter) + 2 * var(--dock-h) + 24px + var(--safe-bottom));
   }
 
   .side {
-    max-height: 56vh;
-    gap: 8px;
-  }
-
-  /* Bottom-up order: the HUD strip sits right above the dock. */
-  .sideFeed {
-    order: 1;
-    flex: 0 1 auto;
-  }
-
-  .sideDisruptions {
-    order: 2;
-  }
-
-  .sideHud {
-    order: 3;
-  }
-
-  .dock {
-    justify-self: stretch;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "toggle toggle"
-      "speed more";
-    gap: 8px;
-    padding: 8px;
-    border-radius: 22px;
-  }
-
-  .dockToggle > * {
-    width: 100%;
+    bottom: calc(var(--gutter) + 2 * var(--dock-h) + 28px + var(--safe-bottom));
   }
 }
 
+/* Phones: the scoreboard is a pill under the bar; the controls stack at the bottom. */
 @media (max-width: 699px) {
-  .overlay {
-    padding: calc(10px + var(--safe-top)) 10px calc(10px + var(--safe-bottom));
+  .side {
+    top: calc(var(--bar-h) + var(--safe-top) + 2px);
+    left: var(--gutter);
+    width: auto;
+    align-items: flex-end;
+  }
+
+  .toasts {
+    left: var(--gutter);
+    right: var(--gutter);
+    width: auto;
+    min-width: 0;
+    transform: none;
+    bottom: calc(var(--gutter) + 2 * var(--dock-h) + 66px + var(--safe-bottom));
+  }
+
+  .bottom {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "break tools"
+      "dock dock";
     gap: 8px;
   }
 
-  .dock {
-    padding: 6px;
-    gap: 6px;
+  .breakMenu {
+    grid-area: break;
   }
 
-  .dockMore {
-    gap: 6px;
+  .tools {
+    grid-area: tools;
+  }
+
+  .dock {
+    grid-area: dock;
+    justify-self: stretch;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    height: auto;
+    padding: 8px 5px 5px;
+    border-radius: var(--radius);
+    row-gap: 5px;
+  }
+
+  .sep {
+    display: none;
+  }
+
+  /* The open dispatch log takes the column down to the bottom edge; the floating controls
+     and notices step aside until it closes (no text showing through the controls). */
+  .overlay[data-log="true"] .side {
+    bottom: calc(var(--gutter) + var(--safe-bottom));
+  }
+
+  .overlay[data-log="true"] .bottom,
+  .overlay[data-log="true"] .toasts {
+    visibility: hidden;
   }
 }

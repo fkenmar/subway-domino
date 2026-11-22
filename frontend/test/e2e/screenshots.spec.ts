@@ -41,7 +41,7 @@ async function freeAreaCenter(page: Page): Promise<{ x: number; y: number }> {
   return page.evaluate(() => {
     const W = window.innerWidth;
     const H = window.innerHeight;
-    const desktop = W >= 1100;
+    const wide = W >= 700;
     let top = 0;
     let bottom = 0;
     let right = 0;
@@ -49,8 +49,8 @@ async function freeAreaCenter(page: Page): Promise<{ x: number; y: number }> {
       const r = node.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
       const role = node.dataset.inset;
-      if (role === "top") top = Math.max(top, r.bottom);
-      else if (role === "bottom" || (role === "side" && !desktop)) bottom = Math.max(bottom, H - r.top);
+      if (role === "top" || (role === "side" && !wide)) top = Math.max(top, r.bottom);
+      else if (role === "bottom") bottom = Math.max(bottom, H - r.top);
       else if (role === "side") right = Math.max(right, W - r.left);
     }
     const fix = (a: number, b: number, size: number): [number, number] => {
@@ -60,7 +60,7 @@ async function freeAreaCenter(page: Page): Promise<{ x: number; y: number }> {
       const k = (size - free) / Math.max(1, a + b);
       return [a * k, b * k];
     };
-    const [l, r] = fix(desktop ? 20 : 6, right + (desktop ? 12 : 6), W);
+    const [l, r] = fix(wide ? 16 : 6, right + (wide ? 12 : 6), W);
     const [t, b] = fix(top + 8, bottom + 8, H);
     return { x: l + (W - l - r) / 2, y: t + (H - t - b) / 2 };
   });
@@ -87,11 +87,17 @@ test.describe("Subway Domino tour", () => {
     await page.waitForTimeout(1500);
     await shot(page, "01-citywide-first-visit");
 
-    // 1 — Break the city with the first visible preset (3 visible + More…).
-    const presets = page.getByRole("navigation", { name: "Meltdown presets" });
-    await expect(presets.getByRole("button", { name: "More…" })).toBeAttached();
+    // 1 — Break the city: one menu holds every preset; pick the first.
+    const breakButton = page.getByRole("button", { name: /Break the city/ });
+    await breakButton.click();
+    const presets = page.getByRole("dialog", { name: "Break the city" }).getByRole("navigation", { name: "Meltdown presets" });
+    expect(await presets.getByRole("button").count()).toBeGreaterThan(3);
     await presets.getByRole("button").first().click();
+    // The same menu lists the active disruptions with clear buttons.
+    await breakButton.click();
     await expect(page.getByRole("region", { name: "Active disruptions" }).getByRole("button", { name: /^Clear/ }).first()).toBeAttached();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "Break the city" })).toBeHidden();
     await expect(page.getByRole("radiogroup", { name: "Who dispatches the trains" })).toHaveAttribute("data-pulse", "true");
     await page.waitForTimeout(6000);
     await shot(page, "02-preset-normal");
@@ -100,11 +106,12 @@ test.describe("Subway Domino tour", () => {
     await page.getByRole("radio", { name: /AI Dispatcher/ }).click();
     const hud = page.getByRole("region", { name: "Live metrics" });
     await expect(hud).toHaveAttribute("data-mode", "ai");
-    await expect(hud).toContainText(/AI in control/);
+    await expect(hud).toContainText(/since AI took over/);
     await page.waitForTimeout(7000);
     await shot(page, "03-preset-ai");
 
     // 3 — Dense Midtown: search flies to Times Sq (3 m/px), zoom in once (1.5 m/px).
+    await page.getByRole("button", { name: "Search stations and lines" }).click();
     const search = page.getByRole("combobox");
     await search.fill("Times Sq");
     await expect(page.getByRole("option").first()).toContainText("Times Sq");

@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from "react";
-import { type OnboardingStep, useStore } from "@/lib/store";
+import { useStore } from "@/lib/store";
 import styles from "./Onboarding.module.css";
 
 const STORAGE_KEY = "subway-domino.onboarding.v1";
-const SHOW_DELAY_MS = 900;
-const BUBBLE_W = 300;
+const SHOW_DELAY_MS = 1200;
+const BUBBLE_W = 264;
 const EDGE = 10;
 
 interface Placement {
@@ -33,31 +33,22 @@ function writeDone(): void {
   }
 }
 
-function place(target: DOMRect, step: Exclude<OnboardingStep, "done">, bubbleH: number): Placement {
+/** Above the "Break the city" button, left-aligned with it: never over the map centre. */
+function place(target: DOMRect, bubbleH: number): Placement {
   const W = window.innerWidth;
-  // Presets: point at the first preset button; toggle: at the AI half of the switch.
-  const anchorX = step === "presets" ? Math.min(target.left + 110, target.right - 30) : target.left + target.width * 0.75;
-  const below = step === "presets";
-  const left = Math.min(Math.max(EDGE, anchorX - BUBBLE_W / 2), W - BUBBLE_W - EDGE);
-  const top = below ? target.bottom + 12 : target.top - 12 - bubbleH;
-  return { left, top, below, arrowLeft: Math.min(Math.max(18, anchorX - left), BUBBLE_W - 18) };
+  const left = Math.min(Math.max(EDGE, target.left), W - BUBBLE_W - EDGE);
+  const top = target.top - 12 - bubbleH;
+  const anchorX = target.left + Math.min(28, target.width / 2);
+  return { left, top, below: false, arrowLeft: Math.min(Math.max(16, anchorX - left), BUBBLE_W - 16) };
 }
 
-type Step = Exclude<OnboardingStep, "done">;
-
-/** Coach-mark copy; touch screens get "tap" wording (and a shorter first step). */
-function copyFor(step: Step, touch: boolean): { title: string; body: string } {
-  if (step === "presets") {
-    return {
-      title: "Start here: break the city",
-      body: touch
-        ? "Tap a meltdown preset — or any station, track or interlocking — to choose what fails."
-        : "Pick a meltdown preset — or click any station, track or interlocking on the map to choose what fails.",
-    };
-  }
+/** Hint copy; touch screens get "tap" wording. */
+function copyFor(touch: boolean): { title: string; body: string } {
   return {
-    title: "Now hand it to the AI",
-    body: "Flip to AI Dispatcher. A Normal-Schedule twin keeps running, so you can see exactly what the AI changed.",
+    title: "Start here: break the city",
+    body: touch
+      ? "Pick a meltdown, or tap any station, track or interlocking."
+      : "Pick a meltdown, or click any station, track or interlocking on the map.",
   };
 }
 
@@ -78,19 +69,28 @@ function useCoarsePointer(): boolean {
   );
 }
 
-/** A single dismissible coach-mark: first the PresetBar, then the mode toggle (§6 UX flow 8). */
+/**
+ * One small, dismissible hint anchored to "Break the city ▾" (§6 UX flow 8). It
+ * goes away for good on "Got it", when the menu opens or once a preset runs.
+ */
 export default function Onboarding() {
   const step = useStore((s) => s.onboarding);
   const setStep = useStore((s) => s.setOnboarding);
   const ready = useStore((s) => s.network !== null);
-  const blocked = useStore((s) => s.selection !== null || s.infoOpen);
-  const aiUnavailable = useStore((s) => s.session !== null && !s.session.aiAvailable);
+  // Also stand aside while a full-screen connection card (at capacity / idle pause) is up.
+  const blocked = useStore(
+    (s) =>
+      s.selection !== null ||
+      s.infoOpen ||
+      s.connection.status === "at_capacity" ||
+      s.connection.status === "idle_timeout",
+  );
   const touch = useCoarsePointer();
   const [visible, setVisible] = useState(false);
   const [placement, setPlacement] = useState<Placement | null>(null);
   const [bubble, setBubble] = useState<HTMLDivElement | null>(null);
 
-  // Returning visitors skip the tour.
+  // Returning visitors skip the hint.
   useEffect(() => {
     if (readDone()) setStep("done");
   }, [setStep]);
@@ -100,16 +100,16 @@ export default function Onboarding() {
   }, [step]);
 
   useEffect(() => {
-    if (!ready || step === "done") return;
+    if (!ready || step !== "presets") return;
     const id = setTimeout(() => setVisible(true), SHOW_DELAY_MS);
     return () => clearTimeout(id);
   }, [ready, step]);
 
   useLayoutEffect(() => {
-    if (!visible || step === "done") return;
-    const target = document.querySelector<HTMLElement>(`[data-onboarding="${step}"]`);
+    if (!visible || step !== "presets") return;
+    const target = document.querySelector<HTMLElement>('[data-onboarding="presets"]');
     if (!target) return;
-    const update = () => setPlacement(place(target.getBoundingClientRect(), step, bubble?.offsetHeight ?? 110));
+    const update = () => setPlacement(place(target.getBoundingClientRect(), bubble?.offsetHeight ?? 96));
     update();
     const ro = new ResizeObserver(update);
     ro.observe(target);
@@ -121,14 +121,8 @@ export default function Onboarding() {
     };
   }, [visible, step, bubble]);
 
-  if (step === "done" || !visible || blocked) return null;
-  const copy =
-    step === "toggle" && aiUnavailable
-      ? {
-          title: "The AI Dispatcher is offline",
-          body: "The trained model isn’t loaded right now, so Normal Schedule keeps running. Try again later!",
-        }
-      : copyFor(step, touch);
+  if (step !== "presets" || !visible || blocked) return null;
+  const copy = copyFor(touch);
 
   return (
     <div
@@ -137,18 +131,15 @@ export default function Onboarding() {
       role="dialog"
       aria-live="polite"
       aria-label={copy.title}
-      data-below={placement?.below ?? true}
+      data-below={placement?.below ?? false}
       style={placement ? { left: placement.left, top: placement.top, width: BUBBLE_W } : { visibility: "hidden" }}
     >
       {placement && <span className={styles.arrow} style={{ left: placement.arrowLeft }} aria-hidden="true" />}
-      <p className={styles.step}>{step === "presets" ? "1 of 2" : "2 of 2"}</p>
       <p className={styles.title}>{copy.title}</p>
       <p className={styles.body}>{copy.body}</p>
-      <div className={styles.actions}>
-        <button type="button" className={styles.dismiss} onClick={() => setStep("done")}>
-          Got it
-        </button>
-      </div>
+      <button type="button" className={styles.dismiss} onClick={() => setStep("done")}>
+        Got it
+      </button>
     </div>
   );
 }

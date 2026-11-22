@@ -1,48 +1,61 @@
 /**
- * Map styling: a dark transit-control-room palette and zoom tiers. Every size is
+ * Map styling: a light palette after the printed NYC subway map, and zoom tiers. Every size is
  * in CSS (screen) pixels so the map stays crisp at every zoom (§6).
  */
 import { MAP_BACKGROUND } from "@/lib/network";
 
 export const PALETTE = {
   background: MAP_BACKGROUND,
+  /** Printed-map basemap: cream land, pale-blue water. */
   water: MAP_BACKGROUND,
-  land: "#121a26",
-  landEdge: "#1c2738",
-  grid: "rgba(120, 150, 190, 0.035)",
-  casing: "rgba(6, 9, 14, 0.92)",
-  riverCasing: "rgba(120, 180, 230, 0.55)",
-  stationFill: "#f4f6fa",
-  stationStroke: "#0a0f17",
+  land: "#f3eee4",
+  landEdge: "#cfc5b2",
+  /** Thin light gaps between parallel lines, with a faint warm hairline outside the bundle. */
+  casing: "#fcfaf5",
+  casingEdge: "rgba(92, 78, 52, 0.2)",
+  riverCasing: "rgba(52, 104, 140, 0.4)",
+  /** Local stops: black dots. */
+  stationFill: "#151515",
+  stationStroke: "#ffffff",
+  /** Express stops and interchanges: white circles with black rims. */
   hubFill: "#ffffff",
-  hubStroke: "#0a0f17",
-  /** Transfer passages between the stations of a complex. */
-  transfer: "rgba(226, 232, 242, 0.78)",
-  label: "#dfe6f1",
-  labelMuted: "#9aa8bc",
-  labelHalo: "rgba(8, 12, 19, 0.92)",
-  borough: "rgba(150, 172, 204, 0.26)",
-  interlocking: "#8fb3ff",
-  yard: "#9aa8bc",
-  yardLead: "rgba(154, 168, 188, 0.45)",
-  yardLabel: "#7d8aa0",
-  calm: "#f4f6fa",
-  amber: "#ffb020",
-  red: "#ff453a",
-  closed: "#05070b",
-  closedX: "#ff453a",
-  block: "#ff453a",
-  signal: "#ffb020",
-  selection: "#ffffff",
-  highlight: "#5ac8fa",
-  heldRing: "#ffb020",
-  stuckHalo: "rgba(255, 69, 58, 0.55)",
-  gap: "#34c759",
-  chipBg: "rgba(14, 20, 31, 0.94)",
-  chipText: "#f4f6fa",
+  hubStroke: "#151515",
+  /** Transfer connectors: white with black outlines. */
+  transfer: "#ffffff",
+  label: "#111111",
+  labelMuted: "#3b3b3b",
+  labelHalo: "rgba(250, 247, 240, 0.94)",
+  borough: "#6f6a62",
+  interlocking: "#3e5578",
+  yard: "#857d6e",
+  yardLead: "rgba(110, 100, 84, 0.5)",
+  yardLabel: "#5f594f",
+  calm: "#ffffff",
+  amber: "#e89a00",
+  red: "#d7261e",
+  closed: "#111111",
+  closedX: "#ffffff",
+  block: "#d7261e",
+  signal: "#e89a00",
+  selection: "#111111",
+  /** The AI dispatcher's accent on the light map (5.4:1 on the land). */
+  highlight: "#0b5cc4",
+  /** Held: a white ring with a black outline (independent of the route colour). */
+  heldRing: "#ffffff",
+  heldEdge: "#111111",
+  /** "AI just acted" flash: black inside a white ring. */
+  aiRing: "#111111",
+  stuckHalo: "rgba(215, 38, 30, 0.5)",
+  gap: "#14853b",
+  /** Train pill outline and drop shadow on the light map. */
+  trainEdge: "rgba(17, 17, 17, 0.88)",
+  trainShadow: "rgba(40, 30, 12, 1)",
+  glyph: "#111111",
+  chipBg: "rgba(17, 17, 17, 0.96)",
+  chipText: "#ffffff",
 } as const;
 
-export const FONT_STACK = '"Helvetica Neue", Helvetica, Arial, system-ui, sans-serif';
+export const FONT_STACK = '"Helvetica Neue", Helvetica, Arial, "Nimbus Sans", sans-serif';
 
 /**
  * Borough names drawn under the lines on wide tiers so first-time visitors can
@@ -107,6 +120,10 @@ export interface ZoomTier {
   trainWidth: number;
   /** Lateral distance per lane unit (see positioning.laneFor). */
   laneWidth: number;
+  /** Route lines are mixed this far (1 = full colour) from the land colour. Full colour at every tier (printed-map ribbons). */
+  lineAlpha: number;
+  /** Route lines are desaturated this far (0 = official hue) before mixing: wide tiers mute the track so trains separate from it. */
+  lineDesat: number;
   showTrainLabels: boolean;
   showStatusIcons: boolean;
 }
@@ -117,11 +134,11 @@ export const ZOOM_TIERS: readonly ZoomTier[] = [
     id: 0,
     name: "city",
     minMPerPx: 40,
-    lineWidth: 2.2,
-    lineGap: 0.3,
-    casingExtra: 1,
-    stationRadius: 1.3,
-    hubRadius: 2.2,
+    lineWidth: 3.6,
+    lineGap: 0.9,
+    casingExtra: 1.1,
+    stationRadius: 1.2,
+    hubRadius: 2.6,
     stationStroke: 0.7,
     showLocalStations: false,
     labelMaxRank: 10,
@@ -135,10 +152,13 @@ export const ZOOM_TIERS: readonly ZoomTier[] = [
     showBoroughs: true,
     showInterlockings: false,
     showYards: false,
-    capsules: false,
-    trainLength: 4.6,
-    trainWidth: 4.6,
-    laneWidth: 1.4,
+    capsules: true,
+    trainLength: 8,
+    trainWidth: 3.6,
+    // Citywide beads stay inside the ribbon in both directions.
+    laneWidth: 0.9,
+    lineAlpha: 1,
+    lineDesat: 0,
     showTrainLabels: false,
     showStatusIcons: false,
   },
@@ -146,11 +166,11 @@ export const ZOOM_TIERS: readonly ZoomTier[] = [
     id: 1,
     name: "borough",
     minMPerPx: 18,
-    lineWidth: 2.6,
-    lineGap: 0.4,
-    casingExtra: 1.2,
-    stationRadius: 1.6,
-    hubRadius: 2.8,
+    lineWidth: 4,
+    lineGap: 1,
+    casingExtra: 1.3,
+    stationRadius: 1.5,
+    hubRadius: 3.1,
     stationStroke: 0.8,
     showLocalStations: true,
     labelMaxRank: 34,
@@ -164,10 +184,12 @@ export const ZOOM_TIERS: readonly ZoomTier[] = [
     showBoroughs: true,
     showInterlockings: false,
     showYards: true,
-    capsules: false,
-    trainLength: 5.4,
-    trainWidth: 5.4,
-    laneWidth: 1.8,
+    capsules: true,
+    trainLength: 10.5,
+    trainWidth: 4.4,
+    laneWidth: 1.9,
+    lineAlpha: 1,
+    lineDesat: 0,
     showTrainLabels: false,
     showStatusIcons: false,
   },
@@ -175,12 +197,12 @@ export const ZOOM_TIERS: readonly ZoomTier[] = [
     id: 2,
     name: "district",
     minMPerPx: 8,
-    lineWidth: 3.2,
-    lineGap: 0.6,
+    lineWidth: 4.6,
+    lineGap: 1.2,
     casingExtra: 1.5,
-    stationRadius: 2.6,
-    hubRadius: 3.9,
-    stationStroke: 1,
+    stationRadius: 2.3,
+    hubRadius: 4.2,
+    stationStroke: 1.0,
     showLocalStations: true,
     labelMaxRank: 100,
     labelAllStations: false,
@@ -194,9 +216,11 @@ export const ZOOM_TIERS: readonly ZoomTier[] = [
     showInterlockings: true,
     showYards: true,
     capsules: true,
-    trainLength: 11,
-    trainWidth: 6,
+    trainLength: 14,
+    trainWidth: 5.6,
     laneWidth: 3.6,
+    lineAlpha: 1,
+    lineDesat: 0,
     showTrainLabels: false,
     showStatusIcons: true,
   },
@@ -204,11 +228,11 @@ export const ZOOM_TIERS: readonly ZoomTier[] = [
     id: 3,
     name: "neighborhood",
     minMPerPx: 3.2,
-    lineWidth: 4.2,
-    lineGap: 0.9,
-    casingExtra: 2,
-    stationRadius: 3.6,
-    hubRadius: 5.2,
+    lineWidth: 5.8,
+    lineGap: 1.5,
+    casingExtra: 1.8,
+    stationRadius: 3.2,
+    hubRadius: 5.4,
     stationStroke: 1.3,
     showLocalStations: true,
     labelMaxRank: 280,
@@ -223,9 +247,11 @@ export const ZOOM_TIERS: readonly ZoomTier[] = [
     showInterlockings: true,
     showYards: true,
     capsules: true,
-    trainLength: 17,
-    trainWidth: 9,
+    trainLength: 19,
+    trainWidth: 7.6,
     laneWidth: 5.8,
+    lineAlpha: 1,
+    lineDesat: 0,
     showTrainLabels: true,
     showStatusIcons: true,
   },
@@ -233,11 +259,11 @@ export const ZOOM_TIERS: readonly ZoomTier[] = [
     id: 4,
     name: "street",
     minMPerPx: 0,
-    lineWidth: 5.4,
-    lineGap: 1,
-    casingExtra: 2.4,
-    stationRadius: 4.6,
-    hubRadius: 6.6,
+    lineWidth: 7.2,
+    lineGap: 1.7,
+    casingExtra: 2,
+    stationRadius: 4.2,
+    hubRadius: 6.8,
     stationStroke: 1.6,
     showLocalStations: true,
     labelMaxRank: Number.POSITIVE_INFINITY,
@@ -252,9 +278,11 @@ export const ZOOM_TIERS: readonly ZoomTier[] = [
     showInterlockings: true,
     showYards: true,
     capsules: true,
-    trainLength: 23,
-    trainWidth: 11,
+    trainLength: 25,
+    trainWidth: 9.6,
     laneWidth: 7.6,
+    lineAlpha: 1,
+    lineDesat: 0,
     showTrainLabels: true,
     showStatusIcons: true,
   },
@@ -263,6 +291,59 @@ export const ZOOM_TIERS: readonly ZoomTier[] = [
 export function tierFor(mPerPx: number): ZoomTier {
   for (const t of ZOOM_TIERS) if (mPerPx >= t.minMPerPx) return t;
   return ZOOM_TIERS[ZOOM_TIERS.length - 1];
+}
+
+/** Pill size anchors (m/px → length × width, CSS px); sizes are interpolated in log scale between them. */
+const TRAIN_SIZE_ANCHORS: readonly [number, number, number][] = [
+  [60, 8, 3.6],
+  [25, 10.5, 4.4],
+  [11, 14, 6],
+  // From the neighbourhood tier (route letters on) pills are at least 16 × 8 CSS px,
+  // so the letter stays readable on 1× displays.
+  [8, 16.5, 8],
+  [4.5, 20, 9],
+  [1.6, 25, 10.5],
+];
+
+/**
+ * Train pill size for a zoom: at least 8 px long at the citywide fit, growing
+ * smoothly with zoom (no jumps at tier boundaries).
+ */
+export function trainSize(mPerPx: number): { length: number; width: number } {
+  const a = TRAIN_SIZE_ANCHORS;
+  if (mPerPx >= a[0][0]) return { length: a[0][1], width: a[0][2] };
+  for (let i = 1; i < a.length; i++) {
+    if (mPerPx >= a[i][0]) {
+      const t = Math.log(a[i - 1][0] / mPerPx) / Math.log(a[i - 1][0] / a[i][0]);
+      return { length: a[i - 1][1] + (a[i][1] - a[i - 1][1]) * t, width: a[i - 1][2] + (a[i][2] - a[i - 1][2]) * t };
+    }
+  }
+  const last = a[a.length - 1];
+  return { length: last[1], width: last[2] };
+}
+
+/** Pull a `#rrggbb` colour towards its own luminance grey (`t` = 1 → fully grey). */
+export function desaturate(hex: string, t: number): string {
+  if (t <= 0) return hex;
+  const p = parseInt(hex.replace("#", ""), 16);
+  const r = (p >> 16) & 255;
+  const g = (p >> 8) & 255;
+  const b = p & 255;
+  const l = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+  const grey = `#${((l << 16) | (l << 8) | l).toString(16).padStart(6, "0")}`;
+  return mixHex(hex, grey, t);
+}
+
+/** Mix two `#rrggbb` colours: `t` = 0 → a, 1 → b. */
+export function mixHex(a: string, b: string, t: number): string {
+  const pa = parseInt(a.replace("#", ""), 16);
+  const pb = parseInt(b.replace("#", ""), 16);
+  const ch = (shift: number) => {
+    const x = (pa >> shift) & 255;
+    const y = (pb >> shift) & 255;
+    return Math.round(x + (y - x) * t);
+  };
+  return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, "0")}`;
 }
 
 /** Total width of a segment bundle with `n` colours. */

@@ -13,9 +13,9 @@ export const PROFILE_INFO: Record<Profile, { label: string; hours: string }> = {
 
 export const SPEED_INFO: Record<Speed, { label: string; hint: string }> = {
   pause: { label: "Pause", hint: "Freeze the simulation" },
-  "1x": { label: "1×", hint: "1 sim-minute per second" },
-  "2x": { label: "2×", hint: "2 sim-minutes per second" },
-  "5x": { label: "5×", hint: "5 sim-minutes per second" },
+  "1x": { label: "1 min/s", hint: "1 simulated minute per real second (60× real time)" },
+  "2x": { label: "2 min/s", hint: "2 simulated minutes per real second (120× real time)" },
+  "5x": { label: "5 min/s", hint: "5 simulated minutes per real second (300× real time)" },
 };
 
 export type MetricKey = "avg_wait_min" | "overcrowded_platforms" | "tunnel_stuck_trains" | "riders_served";
@@ -222,4 +222,22 @@ export const DATASETS = [
 
 export function datasetUrl(id: string): string {
   return `https://data.ny.gov/d/${id}`;
+}
+
+/**
+ * Trunk names in preset sublabels, spelled as lines: right after the route bullets, a bare
+ * "7 Av" reads like the 7 route. Station spans ("1 Av – Bedford Av") are left as they are.
+ */
+const PRESET_LINE_NAMES: Readonly<Record<string, string>> = {
+  "Lexington Av": "Lexington Av Line",
+  "Queens Blvd": "Queens Blvd Line",
+  "7 Av": "Broadway–7 Av Line",
+  "8 Av / Central Park West": "8 Av / Central Park West Line",
+};
+
+/** "1 2 3 · 7 Av" → "1 2 3 · Broadway–7 Av Line" (display only; the data file is unchanged). */
+export function presetSubtitle(subtitle: string): string {
+  const [head, ...rest] = subtitle.split(" · ");
+  if (rest.length === 0) return subtitle;
+  return [head, ...rest.map((part) => PRESET_LINE_NAMES[part.trim()] ?? part)].join(" · ");
 }

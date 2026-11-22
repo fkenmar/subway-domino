@@ -12,6 +12,7 @@ import {
   GeoValidationError,
   loadNetwork,
   MAP_BACKGROUND,
+  SIGNAGE_BACKGROUND,
   normalizeHex,
   routeBullet,
   TRACK_L,
@@ -120,12 +121,13 @@ describe("buildNetwork: edge table", () => {
 });
 
 describe("buildNetwork: route styling", () => {
-  it("normalises colours and keeps every line legible on the dark map", () => {
+  it("normalises colours and keeps the official route colours on the light map", () => {
     const mini = miniNetwork();
     for (const r of mini.routes) {
       expect(r.color).toMatch(/^#[0-9A-F]{6}$/);
-      expect(contrastRatio(r.mapColor, MAP_BACKGROUND)).toBeGreaterThanOrEqual(4.2);
+      expect(r.mapColor).toBe(r.color);
     }
+    expect(contrastRatio("#000000", MAP_BACKGROUND)).toBeGreaterThan(10);
     expect(syntheticNetwork().routes[0].color).toBe("#00933C");
   });
 
@@ -143,10 +145,10 @@ describe("buildNetwork: route styling", () => {
   });
 
   it("lightens dark colours only as far as needed", () => {
-    const navy = "#0039A6"; // the A/C/E blue is too dark on the map background
-    expect(contrastRatio(navy, MAP_BACKGROUND)).toBeLessThan(4.2);
-    expect(contrastRatio(ensureContrast(navy, MAP_BACKGROUND, 4.2), MAP_BACKGROUND)).toBeGreaterThanOrEqual(4.2);
-    expect(ensureContrast("#FCCC0A", MAP_BACKGROUND, 4.2)).toBe("#FCCC0A");
+    const navy = "#0039A6"; // the old A/C/E blue is too dark as a text accent on black signage
+    expect(contrastRatio(navy, SIGNAGE_BACKGROUND)).toBeLessThan(4.2);
+    expect(contrastRatio(ensureContrast(navy, SIGNAGE_BACKGROUND, 4.2), SIGNAGE_BACKGROUND)).toBeGreaterThanOrEqual(4.2);
+    expect(ensureContrast("#FCCC0A", SIGNAGE_BACKGROUND, 4.2)).toBe("#FCCC0A");
   });
 
   it("orders each segment's colour bundle canonically", () => {

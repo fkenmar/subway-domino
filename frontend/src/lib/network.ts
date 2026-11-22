@@ -167,6 +167,14 @@ export interface EdgeTable {
   toStation: Int32Array;
   /** Geometric length in metres (0 for crossovers/turnbacks). */
   lengthM: Float64Array;
+  /**
+   * Routes that may use each edge, as bitsets of `routeWords` 32-bit words
+   * (bit `r & 31` of word `e · routeWords + (r >> 5)`): a run edge takes its
+   * segment's routes, a crossover/turnback its station's, a yard lead every route.
+   * Used to rank interpolation paths (`interp.ts`).
+   */
+  routeBits: Uint32Array;
+  routeWords: number;
 }
 
 export interface Projection {
@@ -218,8 +226,10 @@ export class GeoValidationError extends Error {
 
 // ─── Colour helpers ──────────────────────────────────────────────────────────
 
-/** Map background the line colours must stand out against (kept in sync with style.ts). */
-export const MAP_BACKGROUND = "#0a0f17";
+/** Map background (water) of the light, printed-map palette (kept in sync with style.ts). */
+export const MAP_BACKGROUND = "#bfdaea";
+/** The black signage surfaces (chips, HUD) that route colours sit on as text accents. */
+export const SIGNAGE_BACKGROUND = "#111111";
 
 export function normalizeHex(color: string, fallback = "#808183"): string {
   const c = color.trim().replace(/^#/, "");
@@ -301,8 +311,6 @@ export function validateGeo(raw: unknown): GeoFile {
 
 // ─── Build ───────────────────────────────────────────────────────────────────
 
-/** Minimum contrast of map line colours against the map background. */
-const MIN_LINE_CONTRAST = 4.2;
 
 function chordOrientation(line: Polyline): 1 | -1 {
   const n = line.xs.length;
@@ -377,7 +385,8 @@ export function buildNetwork(geo: GeoFile): Network {
       ...r,
       color,
       textColor: normalizeHex(r.text_color, "#FFFFFF"),
-      mapColor: ensureContrast(color, MAP_BACKGROUND, MIN_LINE_CONTRAST),
+      // The official colour on the light map: route colours are factual service designations.
+      mapColor: color,
       bullet: b.text,
       diamond: b.diamond,
     };
@@ -411,6 +420,7 @@ export function buildNetwork(geo: GeoFile): Network {
 
   // Edge table.
   const nE = geo.edges.length;
+  const routeWords = Math.max(1, Math.ceil(routes.length / 32));
   const edges: EdgeTable = {
     count: nE,
     kind: new Uint8Array(nE),
@@ -422,6 +432,16 @@ export function buildNetwork(geo: GeoFile): Network {
     fromStation: new Int32Array(nE),
     toStation: new Int32Array(nE),
     lengthM: new Float64Array(nE),
+    routeBits: new Uint32Array(nE * routeWords),
+    routeWords,
+  };
+  const setRouteBits = (e: number, list: readonly number[] | null): void => {
+    const base = e * routeWords;
+    if (!list) {
+      edges.routeBits.fill(0xffffffff, base, base + routeWords);
+      return;
+    }
+    for (const r of list) if (r >= 0 && r < routes.length) edges.routeBits[base + (r >> 5)] |= 1 << (r & 31);
   };
   const segmentHasXEdge = new Uint8Array(segments.length);
   const leadCache = new Map<number, number>();
@@ -469,6 +489,10 @@ export function buildNetwork(geo: GeoFile): Network {
       edges.fromStation[i] = -1;
       edges.toStation[i] = -1;
     }
+    if (kind === EDGE_RUN) setRouteBits(i, segments[seg].routes ?? []);
+    else if ((kind === EDGE_CROSSOVER || kind === EDGE_TURNBACK) && edges.station[i] >= 0) {
+      setRouteBits(i, geo.stations[edges.station[i]].routes ?? []);
+    } else setRouteBits(i, null);
   }
 
   const stationHasExpress = new Uint8Array(nStations);

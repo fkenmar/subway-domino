@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { PROFILE_INFO } from "@/lib/copy";
+import { useDisclosure, useDismiss } from "@/lib/motion";
 import { PROFILES, type Profile } from "@/lib/protocol";
 import { getSession } from "@/lib/session";
 import { useStore } from "@/lib/store";
@@ -10,25 +11,13 @@ import styles from "./Controls.module.css";
 /** Time-of-day demand profile. Changing it restarts the simulation (the menu says so). */
 export default function ProfileSelect() {
   const profile = useStore((s) => s.settings.profile);
-  const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: PointerEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("pointerdown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  const menu = useDisclosure();
+  const open = menu.mounted && !menu.closing;
+  useDismiss(open, [wrapRef], menu.close);
 
   const choose = (p: Profile) => {
-    setOpen(false);
+    menu.close();
     if (p !== profile) getSession().setProfile(p);
   };
 
@@ -40,7 +29,7 @@ export default function ProfileSelect() {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Time of day: ${PROFILE_INFO[profile].label}`}
-        onClick={() => setOpen((o) => !o)}
+        onClick={menu.toggle}
       >
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" strokeWidth="1.6" />
@@ -51,8 +40,8 @@ export default function ProfileSelect() {
           <path d="M2 6.5L5 3.5l3 3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
         </svg>
       </button>
-      {open && (
-        <div className={styles.menu} role="menu" aria-label="Time of day">
+      {menu.mounted && (
+        <div className={`glass ${styles.menu}`} role="menu" aria-label="Time of day" data-state={menu.closing ? "closing" : "open"}>
           <p className={styles.menuNote}>
             <span aria-hidden="true">⚠︎</span>
             <span>Switching the time of day restarts the simulation and clears all disruptions.</span>

@@ -3,11 +3,11 @@
   align-items: center;
   align-self: center;
   gap: 9px;
-  max-width: 100%;
+  max-width: min(560px, 100%);
   min-height: 36px;
   padding: 6px 8px 6px 14px;
-  border-radius: 999px;
-  background: rgba(11, 17, 26, 0.94);
+  border-radius: var(--radius-sm);
+  background: rgba(17, 17, 17, 0.97);
   border: 1px solid var(--line-strong);
   box-shadow: var(--shadow-lg);
   backdrop-filter: var(--blur);
@@ -35,7 +35,7 @@
 .pillButton {
   height: 26px;
   padding: 0 11px;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--line-strong);
   background: var(--panel-raised);
   color: var(--text);
@@ -69,10 +69,11 @@
 }
 
 .cardWrap {
-  position: absolute;
+  position: fixed;
   inset: 0;
   display: grid;
   place-items: center;
+  padding: 16px;
   pointer-events: none;
 }
 
@@ -83,8 +84,9 @@
   gap: 8px;
   width: min(420px, 100%);
   padding: 22px 24px;
-  border-radius: 20px;
-  background: rgba(11, 17, 26, 0.96);
+  border-radius: var(--radius-lg);
+  background: #111111;
+  box-shadow: var(--sign-rule), var(--shadow-lg);
   border: 1px solid var(--line-strong);
   box-shadow: var(--shadow-lg);
   text-align: center;
@@ -112,7 +114,7 @@
 }
 
 .cardIcon[data-tone="info"] {
-  background: rgba(90, 200, 250, 0.14);
+  background: rgba(74, 168, 255, 0.14);
   color: var(--ai);
 }
 
@@ -144,13 +146,13 @@
   margin-top: 6px;
   padding: 0 20px;
   border: 0;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #46c2f7, #1f9fe0);
-  color: #04131d;
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  color: #111111;
   font-size: 14px;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 6px 18px rgba(47, 182, 245, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
 .idle {
@@ -161,7 +163,7 @@
   place-items: center;
   padding: 16px;
   border: 0;
-  background: rgba(4, 7, 12, 0.55);
+  background: rgba(20, 16, 8, 0.42);
   backdrop-filter: blur(2px) saturate(80%);
   -webkit-backdrop-filter: blur(2px) saturate(80%);
   color: inherit;

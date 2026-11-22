@@ -1,7 +1,7 @@
 /** zustand store reducers that carry product rules (sparkline window, toasts, feed). */
 import { beforeEach, describe, expect, it } from "vitest";
 import type { MetricsMessage, MetricValues } from "@/lib/protocol";
-import { appendHistory, FEED_LIMIT, HISTORY_WINDOW_S, MAX_TOASTS, useStore } from "@/lib/store";
+import { appendHistory, appendTrend, FEED_LIMIT, HISTORY_WINDOW_S, MAX_TOASTS, TREND_POINTS, useStore } from "@/lib/store";
 
 const values = (w: number): MetricValues => ({
   avg_wait_min: w,
@@ -101,5 +101,23 @@ describe("store", () => {
     s.clearHistory();
     expect(useStore.getState().history).toEqual([]);
     expect(useStore.getState().metrics).toBeNull();
+  });
+});
+
+describe("appendTrend (sparkline series)", () => {
+  it("keeps the last TREND_POINTS points at any sim speed and restarts on a reset", () => {
+    let tr = appendTrend([], metrics(30_000));
+    for (let k = 1; k < TREND_POINTS + 15; k++) tr = appendTrend(tr, metrics(30_000 + 300 * k)); // 5x: 300 sim-s apart
+    expect(tr).toHaveLength(TREND_POINTS);
+    expect(tr.at(-1)?.t).toBe(30_000 + 300 * (TREND_POINTS + 14));
+    expect(appendTrend(tr, metrics(1_000))).toHaveLength(1);
+  });
+
+  it("is filled by pushMetrics and cleared with the history", () => {
+    useStore.getState().clearHistory();
+    useStore.getState().pushMetrics(metrics(50_000));
+    expect(useStore.getState().trend).toHaveLength(1);
+    useStore.getState().clearHistory();
+    expect(useStore.getState().trend).toHaveLength(0);
   });
 });

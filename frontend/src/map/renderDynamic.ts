@@ -12,7 +12,7 @@ import { locate, makePose } from "@/lib/positioning";
 import { type DisruptionInfo, type DisruptionKind, STATION_CLOSED, STATUS } from "@/lib/protocol";
 import type { Selection } from "@/lib/store";
 import { appendOffsetPath, interlockingOffset, projectLine } from "./renderBase";
-import { bundleWidth, CROWD_ALERT, CROWD_CALM, crowdColor, FONT_STACK, PALETTE, type ZoomTier } from "./style";
+import { bundleWidth, CROWD_ALERT, CROWD_CALM, crowdColor, FONT_STACK, mixHex, PALETTE, trainSize, type ZoomTier } from "./style";
 
 export type HoverTarget =
   | { type: "station" | "segment" | "interlocking"; idx: number }
@@ -26,6 +26,8 @@ export interface DynamicScene {
   dpr: number;
   now: number;
   trains: InterpolatedTrains;
+  /** Trains fading out (left the map, or their slot was reused); optional. */
+  ghosts?: InterpolatedTrains | null;
   crowd: Float32Array;
   crowdCount: number;
   disruptions: readonly DisruptionInfo[];
@@ -58,6 +60,60 @@ const KIND_CHIP: Record<DisruptionKind, string> = {
 };
 
 type Ctx2D = CanvasRenderingContext2D;
+
+const reducedMotionQuery =
+  typeof window !== "undefined" && typeof window.matchMedia === "function"
+    ? window.matchMedia("(prefers-reduced-motion: reduce)")
+    : null;
+
+/** Pulses, flashes and marching dashes hold still for viewers who ask for reduced motion. */
+function reducedMotion(): boolean {
+  return reducedMotionQuery?.matches === true;
+}
+
+/** Status bits that mean a dispatch action is acting on the train. */
+const ACTION_BITS = STATUS.HELD | STATUS.SHORT_TURNING | STATUS.TRACK_SWITCH | STATUS.REROUTED | STATUS.GAP_TRAIN | STATUS.SKIPPING_NEXT;
+/** A train that an action just touched flashes this long. */
+const ACTION_FLASH_MS = 1500;
+/** Heading smoothing time constant: pills turn through curves instead of snapping at polyline vertices. */
+const HEADING_TAU_MS = 70;
+/**
+ * Soft drop shadow (light map): two translucent, fattened copies of each pill under it,
+ * nudged down: (extra radius px, alpha), outer then inner. Fills, not strokes:
+ * the cheapest way to touch only the pixels around the pills.
+ */
+const HALO = [
+  [3.2, 0.07],
+  [1.5, 0.14],
+] as const;
+/** Shadow offset (CSS px, downwards). */
+const SHADOW_DY = 1.2;
+/** Citywide train bead fill (inset on the ribbon). */
+const BEAD_FILL = "#ffffff";
+/** Fill intensity by load bucket (empty → crowded): the route colour mixed this far towards white, so fuller = deeper. */
+const LOAD_LIGHTEN = [0.24, 0.15, 0.07, 0] as const;
+/** Extra lightening on wide tiers (none on the light map: the dark outline separates pill from ribbon). */
+const WIDE_LIGHTEN = 0;
+/** Glow radius and strength by tier (city → street): small and faint citywide, where the trunks are dense. */
+const HALO_RADIUS_K = [0.45, 0.7, 1, 1.25, 1.25] as const;
+const HALO_ALPHA_K = [0.55, 0.8, 1, 1, 1] as const;
+
+function loadBucket(load: number): number {
+  return load < 25 ? 0 : load < 55 ? 1 : load < 85 ? 2 : 3;
+}
+
+/** Append a capsule centred at (x, y), along unit (ux, uy), `h` from centre to cap centre, radius `r`. */
+function addPill(p: Path2D, x: number, y: number, ux: number, uy: number, h: number, r: number): void {
+  const fx = x + ux * h;
+  const fy = y + uy * h;
+  const bx = x - ux * h;
+  const by = y - uy * h;
+  const th = Math.atan2(uy, ux);
+  p.moveTo(fx - uy * r, fy + ux * r);
+  p.arc(fx, fy, r, th + Math.PI / 2, th - Math.PI / 2, true);
+  p.arc(bx, by, r, th - Math.PI / 2, th + Math.PI / 2, true);
+  p.closePath();
+}
 
 const CHIP_FONT = `700 10.5px ${FONT_STACK}`;
 const CHIP_MONO = `600 10.5px ui-monospace, "SF Mono", Menlo, monospace`;
@@ -110,7 +166,7 @@ export class DynamicRenderer {
     tile.height = size;
     const t = tile.getContext("2d");
     if (!t) return null;
-    t.fillStyle = "rgba(255, 69, 58, 0.25)";
+    t.fillStyle = "rgba(215, 38, 30, 0.2)";
     t.fillRect(0, 0, size, size);
     t.strokeStyle = PALETTE.block;
     t.lineWidth = 2.2 * dpr;
@@ -159,7 +215,7 @@ export class DynamicRenderer {
     ctx.lineJoin = "round";
     if (kind === "signal_delay") {
       ctx.setLineDash([7, 5]);
-      ctx.lineDashOffset = -(now / 40) % 12;
+      ctx.lineDashOffset = reducedMotion() ? 0 : -(now / 40) % 12;
       ctx.strokeStyle = PALETTE.signal;
       ctx.lineWidth = Math.max(2.5, half * 2 + 3);
       ctx.globalAlpha = 0.95;
@@ -303,7 +359,7 @@ export class DynamicRenderer {
         const gr = 3 + ratio * 7;
         const g = ctx.createRadialGradient(x, y, 0, x, y, gr);
         g.addColorStop(0, color as string);
-        g.addColorStop(1, "rgba(255, 69, 58, 0)");
+        g.addColorStop(1, "rgba(215, 38, 30, 0)");
         ctx.globalAlpha = 0.55;
         ctx.fillStyle = g;
         ctx.beginPath();
@@ -316,7 +372,7 @@ export class DynamicRenderer {
       ctx.fillStyle = color as string;
       ctx.fill();
       if (c >= CROWD_ALERT) {
-        const phase = (now / 1300 + i * 0.137) % 1;
+        const phase = reducedMotion() ? 0.35 : (now / 1300 + i * 0.137) % 1;
         ctx.globalAlpha = (1 - phase) * 0.85;
         this.ring(ctx, x, y, r + 1.5 + phase * (tier.id >= 2 ? 9 : 6), PALETTE.red, 1.5);
         ctx.globalAlpha = 1;
@@ -383,176 +439,354 @@ export class DynamicRenderer {
     }
   }
 
+  // Per-train state by train_id: smoothed heading, last status, when an action last touched it.
+  private headX = new Float32Array(1024);
+  private headY = new Float32Array(1024);
+  private headAt = new Float64Array(1024);
+  private lastStatus = new Uint8Array(1024);
+  private actionAt = new Float64Array(1024).fill(Number.NEGATIVE_INFINITY);
+  /** Pill fill per route colour and load bucket (and wide-tier boost). */
+  private fills = new Map<string, string[]>();
+  // Per-frame scratch (screen geometry of the drawn trains).
+  private tx = new Float32Array(1024);
+  private ty = new Float32Array(1024);
+  private tux = new Float32Array(1024);
+  private tuy = new Float32Array(1024);
+
+  private ensureTrainState(id: number): void {
+    if (id < this.headX.length) return;
+    const cap = Math.max(id + 1, this.headX.length * 2);
+    const grow = <T extends Float32Array | Float64Array | Uint8Array>(a: T, b: T, fill?: number): T => {
+      if (fill !== undefined) b.fill(fill);
+      b.set(a);
+      return b;
+    };
+    this.headX = grow(this.headX, new Float32Array(cap));
+    this.headY = grow(this.headY, new Float32Array(cap));
+    this.headAt = grow(this.headAt, new Float64Array(cap));
+    this.lastStatus = grow(this.lastStatus, new Uint8Array(cap));
+    this.actionAt = grow(this.actionAt, new Float64Array(cap), Number.NEGATIVE_INFINITY);
+  }
+
+  private fillFor(color: string, load: number, wide = false): string {
+    const key = wide ? `${color}+` : color;
+    let v = this.fills.get(key);
+    if (!v) {
+      v = LOAD_LIGHTEN.map((t) => mixHex(color, "#ffffff", wide ? t + WIDE_LIGHTEN : t));
+      this.fills.set(key, v);
+    }
+    return v[loadBucket(load)];
+  }
+
+  /**
+   * Screen pose of train `i` of `set` (lane-offset position + smoothed heading)
+   * into slot `k` of the scratch arrays. Returns false when it can't be placed or is off screen.
+   */
+  private placeTrain(scene: DynamicScene, set: InterpolatedTrains, i: number, k: number, smooth: boolean, margin: number): boolean {
+    const { net, camera, tier, now } = scene;
+    const pose = this.pose;
+    if (!locate(net, set.edge[i], set.frac[i], pose)) return false;
+    let x = camera.toScreenX(pose.x);
+    let y = camera.toScreenY(pose.y);
+    const dx = pose.dx;
+    const dy = -pose.dy; // world y up → screen y down
+    if (pose.lane !== 0 && (dx !== 0 || dy !== 0)) {
+      const off = pose.lane * tier.laneWidth;
+      x += -dy * off;
+      y += dx * off;
+    }
+    if (x < -margin || y < -margin || x > camera.width + margin || y > camera.height + margin) return false;
+    const id = set.trainId[i];
+    this.ensureTrainState(id);
+    let ux = this.headX[id];
+    let uy = this.headY[id];
+    const fresh = now - this.headAt[id] > 400 || (ux === 0 && uy === 0);
+    if (dx !== 0 || dy !== 0) {
+      if (!smooth || fresh || ux * dx + uy * dy < -0.2) {
+        ux = dx;
+        uy = dy;
+      } else {
+        const a = 1 - Math.exp(-(now - this.headAt[id]) / HEADING_TAU_MS);
+        ux += (dx - ux) * a;
+        uy += (dy - uy) * a;
+        const l = Math.hypot(ux, uy) || 1;
+        ux /= l;
+        uy /= l;
+      }
+    } else if (fresh) {
+      ux = 1;
+      uy = 0;
+    }
+    if (smooth) {
+      this.headX[id] = ux;
+      this.headY[id] = uy;
+      this.headAt[id] = now;
+    }
+    this.tx[k] = x;
+    this.ty[k] = y;
+    this.tux[k] = ux;
+    this.tuy[k] = uy;
+    return true;
+  }
+
   private drawTrains(ctx: Ctx2D, scene: DynamicScene): void {
     const { net, camera, tier, trains, now } = scene;
+    const ghosts = scene.ghosts ?? null;
     const n = trains.count;
+    const total = n + (ghosts?.count ?? 0);
     if (this.trainIds.length < n) {
       this.trainIds = new Uint16Array(n * 2);
       this.trainIdx = new Int32Array(n * 2);
       this.trainXY = new Float32Array(n * 4);
     }
-    const W = camera.width;
-    const H = camera.height;
-    const pose = this.pose;
-    const capsule = tier.capsules;
-    const len = tier.trainLength;
-    const wid = tier.trainWidth;
+    if (this.tx.length < total) {
+      const cap = total * 2;
+      this.tx = new Float32Array(cap);
+      this.ty = new Float32Array(cap);
+      this.tux = new Float32Array(cap);
+      this.tuy = new Float32Array(cap);
+    }
+    // Citywide: trains are small white beads inset on the full-colour ribbons, so the lines stay
+    // solid (no "sausage chain") and the printed-map look holds; pills from the borough tier on.
+    const bead = tier.id === 0;
+    const size = trainSize(camera.mPerPx);
+    const len = bead ? 4.4 : size.length;
+    const wid = bead ? tier.lineWidth * 0.5 : size.width;
     const r = wid / 2;
-    const bodies = new Map<string, Path2D>();
-    const outline = new Path2D();
-    const stuck: number[] = [];
-    const held: number[] = [];
-    const icons: number[] = [];
-    const dashed = new Path2D();
-    let k = 0;
+    const h = Math.max(0, len / 2 - r);
+    const close = tier.id >= 2;
+    const margin = len + 24;
 
-    // Positions (and per-train screen geometry) first; drawing is batched by colour.
-    const geo: { x: number; y: number; dx: number; dy: number }[] = [];
+    // 1) Place live trains (k = 0..count-1 are hit-testable), then fading ghosts.
+    let k = 0;
     for (let i = 0; i < n; i++) {
-      if (!locate(net, trains.edge[i], trains.frac[i], pose)) continue;
-      let x = camera.toScreenX(pose.x);
-      let y = camera.toScreenY(pose.y);
-      const dx = pose.dx;
-      const dy = -pose.dy; // world y up → screen y down
-      if (pose.lane !== 0 && (dx !== 0 || dy !== 0)) {
-        const off = pose.lane * tier.laneWidth;
-        x += -dy * off;
-        y += dx * off;
-      }
-      if (x < -len || y < -len || x > W + len || y > H + len) continue;
-      const route = net.routes[trains.route[i]];
-      const color = route?.mapColor ?? "#9aa8bc";
-      let path = bodies.get(color);
-      if (!path) {
-        path = new Path2D();
-        bodies.set(color, path);
-      }
-      if (capsule && (dx !== 0 || dy !== 0)) {
-        const half = Math.max(0, len / 2 - r);
-        const fx = x + dx * half;
-        const fy = y + dy * half;
-        const bx = x - dx * half;
-        const by = y - dy * half;
-        const th = Math.atan2(dy, dx);
-        for (const p of [path, outline]) {
-          p.moveTo(fx + Math.cos(th - Math.PI / 2) * r, fy + Math.sin(th - Math.PI / 2) * r);
-          p.arc(fx, fy, r, th - Math.PI / 2, th + Math.PI / 2);
-          p.arc(bx, by, r, th + Math.PI / 2, th + (3 * Math.PI) / 2);
-          p.closePath();
-        }
-      } else {
-        const rr = capsule ? r * 1.15 : r;
-        path.moveTo(x + rr, y);
-        path.arc(x, y, rr, 0, Math.PI * 2);
-        outline.moveTo(x + rr, y);
-        outline.arc(x, y, rr, 0, Math.PI * 2);
-      }
+      if (!this.placeTrain(scene, trains, i, k, true, margin)) continue;
+      const id = trains.trainId[i];
       const status = trains.status[i];
-      if (status & STATUS.TUNNEL_STUCK) stuck.push(k);
-      if (status & STATUS.HELD) held.push(k);
-      if (status & (STATUS.SHORT_TURNING | STATUS.GAP_TRAIN | STATUS.SKIPPING_NEXT | STATUS.TRACK_SWITCH)) icons.push(k);
-      if (status & STATUS.REROUTED && capsule) {
-        dashed.moveTo(x + len / 2 + 2, y);
-        dashed.arc(x, y, len / 2 + 2, 0, Math.PI * 2);
-      }
-      geo.push({ x, y, dx, dy });
-      this.trainXY[2 * k] = x;
-      this.trainXY[2 * k + 1] = y;
-      this.trainIds[k] = trains.trainId[i];
+      const gained = status & ACTION_BITS & ~this.lastStatus[id];
+      if (gained) this.actionAt[id] = now;
+      this.lastStatus[id] = status;
+      this.trainXY[2 * k] = this.tx[k];
+      this.trainXY[2 * k + 1] = this.ty[k];
+      this.trainIds[k] = id;
       this.trainIdx[k] = i;
       k++;
     }
     this.trainCount = k;
-
-    // Tunnel-stuck red halo (pulsing) under the bodies.
-    if (stuck.length) {
-      const pulse = 0.55 + 0.45 * Math.sin(now / 260);
-      const hr = (capsule ? len / 2 : r) + (capsule ? 5 : 3.2);
-      ctx.save();
-      for (const j of stuck) {
-        const g = geo[j];
-        const grad = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, hr);
-        grad.addColorStop(0, `rgba(255, 69, 58, ${0.75 * pulse})`);
-        grad.addColorStop(1, "rgba(255, 69, 58, 0)");
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(g.x, g.y, hr, 0, Math.PI * 2);
-        ctx.fill();
+    const ghostIdx: number[] = [];
+    let kg = k;
+    if (ghosts) {
+      for (let i = 0; i < ghosts.count; i++) {
+        if (ghosts.fade[i] <= 0.02 || !this.placeTrain(scene, ghosts, i, kg, false, margin)) continue;
+        ghostIdx.push(i);
+        kg++;
       }
-      ctx.restore();
     }
 
-    // Bodies: dark outline, then colour fills.
-    ctx.lineWidth = capsule ? 2.2 : 1.6;
-    ctx.strokeStyle = "rgba(5, 8, 12, 0.95)";
-    ctx.stroke(outline);
-    for (const [color, path] of bodies) {
-      ctx.fillStyle = color;
-      ctx.fill(path);
+    const colorOf = (set: InterpolatedTrains, i: number) => net.routes[set.route[i]]?.mapColor ?? "#9aa8bc";
+
+    // 2) Pill paths of fully visible trains, batched by fill (route colour × load) for the bodies
+    //    and by route colour for the halos; status outlines alongside.
+    const byFill = new Map<string, Path2D>();
+    const halos = new Map<string, [Path2D, Path2D]>();
+    const tierIdx = Math.min(HALO_RADIUS_K.length - 1, Math.max(0, tier.id));
+    const haloK = HALO_RADIUS_K[tierIdx];
+    const haloA = HALO_ALPHA_K[tierIdx];
+    const wide = tier.id <= 1;
+    // Tunnel-stuck: a white gap, then a red ring (and the red pulse) — legible on the red lines too.
+    const stuck = new Path2D();
+    const stuckRing = new Path2D();
+    const stuckHalo: [Path2D, Path2D] = [new Path2D(), new Path2D()];
+    let anyStuck = false;
+    const casing = new Path2D();
+    const heldRing = new Path2D();
+    const rerouted = new Path2D();
+    const lights = new Path2D();
+    // Wide tiers: a light core along each pill, so trains read as objects, not as dashes in the line.
+    const cores = new Path2D();
+    const still = reducedMotion();
+    const pulse = still ? 0.6 : 0.5 + 0.5 * Math.sin(now / 210);
+    for (let j = 0; j < k; j++) {
+      const i = this.trainIdx[j];
+      if (trains.fade[i] < 1) continue;
+      const x = this.tx[j];
+      const y = this.ty[j];
+      const ux = this.tux[j];
+      const uy = this.tuy[j];
+      const color = colorOf(trains, i);
+      const fill = bead ? BEAD_FILL : this.fillFor(color, trains.load[i], wide);
+      let p = byFill.get(fill);
+      if (!p) {
+        p = new Path2D();
+        byFill.set(fill, p);
+      }
+      addPill(p, x, y, ux, uy, h, r);
+      const status = trains.status[i];
+      if (status & STATUS.TUNNEL_STUCK) {
+        anyStuck = true;
+        addPill(stuck, x, y, ux, uy, h, r + 1.4);
+        addPill(stuckRing, x, y, ux, uy, h, r + 3);
+        const grow = 1.3 + 0.9 * pulse;
+        addPill(stuckHalo[0], x, y, ux, uy, h, r + HALO[0][0] * haloK * grow);
+        addPill(stuckHalo[1], x, y, ux, uy, h, r + HALO[1][0] * haloK * grow);
+      } else if (!bead) {
+        let g = halos.get(color);
+        if (!g) {
+          g = [new Path2D(), new Path2D()];
+          halos.set(color, g);
+        }
+        addPill(g[0], x, y, ux, uy, h, r + HALO[0][0] * haloK);
+        addPill(g[1], x, y, ux, uy, h, r + HALO[1][0] * haloK);
+      }
+      if (status & STATUS.HELD) addPill(heldRing, x, y, ux, uy, h, r + 2.4);
+      // A dark casing separates the pill from the line under it (beads sit inside the ribbon instead).
+      if (!bead) addPill(casing, x, y, ux, uy, h, r + (close ? 1 : 0.9));
+      if (!close && !bead) {
+        cores.moveTo(x - ux * h, y - uy * h);
+        cores.lineTo(x + ux * h, y + uy * h);
+      }
+      if (close) {
+        if (status & STATUS.REROUTED) addPill(rerouted, x, y, ux, uy, h, r + 2.4);
+        const fx = x + ux * (h + r * 0.3);
+        const fy = y + uy * (h + r * 0.3);
+        lights.moveTo(fx + r * 0.34, fy);
+        lights.arc(fx, fy, r * 0.34, 0, Math.PI * 2);
+      }
     }
 
-    if (capsule) {
-      // Rerouted: dashed outline.
+    // 3) Soft drop shadow so pills lift off the light map; tunnel-stuck trains glow red and pulse.
+    ctx.save();
+    ctx.translate(0, SHADOW_DY);
+    ctx.fillStyle = PALETTE.trainShadow;
+    for (let q = 0; q < 2; q++) {
+      ctx.globalAlpha = HALO[q][1] * haloA;
+      for (const g of halos.values()) ctx.fill(g[q]);
+    }
+    ctx.restore();
+    for (let q = 0; q < 2; q++) {
+      if (anyStuck) {
+        ctx.globalAlpha = Math.min(1, HALO[q][1] * (3.4 + 2.4 * pulse));
+        ctx.fillStyle = PALETTE.red;
+        ctx.fill(stuckHalo[q]);
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // 4) Bodies: route colour (deeper = fuller) inside a thin dark outline.
+    ctx.lineJoin = "round";
+    ctx.fillStyle = PALETTE.trainEdge;
+    ctx.fill(casing);
+    for (const [fill, p] of byFill) {
+      ctx.fillStyle = fill;
+      ctx.fill(p);
+    }
+    if (!close) {
+      ctx.lineCap = "round";
+      ctx.lineWidth = Math.max(0.9, r * 0.55);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+      ctx.stroke(cores);
+    }
+    if (anyStuck) {
+      ctx.lineWidth = close ? 2.2 : 1.8;
+      ctx.strokeStyle = "#ffffff";
+      ctx.stroke(stuck);
+      ctx.lineWidth = close ? 2 : 1.6;
+      ctx.strokeStyle = PALETTE.red;
+      ctx.stroke(stuckRing);
+    }
+    if (close) {
+      ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+      ctx.fill(lights);
+    }
+
+    // 5) Fading trains (new trips appearing, ghosts leaving): drawn one by one with their opacity.
+    for (let j = 0; j < kg; j++) {
+      const ghost = j >= k;
+      const set = ghost ? (ghosts as InterpolatedTrains) : trains;
+      const i = ghost ? ghostIdx[j - k] : this.trainIdx[j];
+      const fade = set.fade[i];
+      if (fade >= 1) continue;
+      const p = new Path2D();
+      addPill(p, this.tx[j], this.ty[j], this.tux[j], this.tuy[j], h, r);
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = bead ? BEAD_FILL : this.fillFor(colorOf(set, i), set.load[i], wide);
+      ctx.fill(p);
+    }
+    ctx.globalAlpha = 1;
+
+    // 6) Status cues that don't depend on the route colour: held = white ring with a black
+    //    outline (reads on yellow, red and blue alike); rerouted = dashed ring (close zoom).
+    ctx.lineWidth = close ? 3.6 : 3;
+    ctx.strokeStyle = PALETTE.heldEdge;
+    ctx.stroke(heldRing);
+    ctx.lineWidth = close ? 1.8 : 1.4;
+    ctx.strokeStyle = PALETTE.heldRing;
+    ctx.stroke(heldRing);
+    if (close) {
       ctx.save();
       ctx.setLineDash([2.5, 2]);
+      ctx.strokeStyle = PALETTE.glyph;
+      ctx.lineWidth = 1.1;
+      ctx.stroke(rerouted);
+      ctx.restore();
+    }
+
+    // 7) A short flash when an action starts acting on a train (AI holds, short turns, gap trains…).
+    for (let j = 0; j < k; j++) {
+      const i = this.trainIdx[j];
+      const id = trains.trainId[i];
+      const t = (now - this.actionAt[id]) / ACTION_FLASH_MS;
+      if (!(t >= 0 && t < 1)) continue;
+      const e = still ? 0.35 : 1 - (1 - t) ** 3;
+      const p = new Path2D();
+      addPill(p, this.tx[j], this.ty[j], this.tux[j], this.tuy[j], h, r + 2 + e * (close ? 9 : 6));
+      // Black-and-white double ring: visible on every route colour (blue A/C/E included).
+      ctx.globalAlpha = 1 - t;
+      ctx.lineWidth = 4.2 - 1.2 * t;
       ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 1.2;
-      ctx.stroke(dashed);
-      ctx.restore();
+      ctx.stroke(p);
+      ctx.lineWidth = 2 - t;
+      ctx.strokeStyle = trains.status[i] & STATUS.GAP_TRAIN ? PALETTE.gap : PALETTE.aiRing;
+      ctx.stroke(p);
     }
+    ctx.globalAlpha = 1;
 
-    // Held: amber ring.
-    if (held.length) {
-      ctx.save();
-      ctx.strokeStyle = PALETTE.heldRing;
-      ctx.lineWidth = capsule ? 1.8 : 1.2;
-      ctx.beginPath();
-      const hr = (capsule ? len / 2 : r) + 2.2;
-      for (const j of held) {
-        const g = geo[j];
-        ctx.moveTo(g.x + hr, g.y);
-        ctx.arc(g.x, g.y, hr, 0, Math.PI * 2);
-      }
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    // Route letter inside capsules at close zoom.
+    // 8) Route letter inside pills at close zoom.
     if (tier.showTrainLabels) {
       ctx.save();
-      ctx.font = `800 ${Math.max(7, Math.round(wid * 0.82))}px ${FONT_STACK}`;
+      ctx.font = `800 ${Math.max(8, Math.round(wid * 0.86))}px ${FONT_STACK}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       for (let j = 0; j < k; j++) {
         const i = this.trainIdx[j];
         const route = net.routes[trains.route[i]];
-        if (!route) continue;
+        if (!route || trains.fade[i] < 1) continue;
         ctx.fillStyle = route.textColor;
-        ctx.fillText(route.bullet, geo[j].x, geo[j].y + 0.5);
+        ctx.fillText(route.bullet, this.tx[j], this.ty[j] + 0.5);
       }
       ctx.restore();
     }
 
-    // Status glyphs: short-turn ↺, gap train ✚, skipping », track switch ⇄.
-    if (tier.showStatusIcons && icons.length) {
+    // 9) Status glyphs above the pill: short-turn ↺, gap train ✚, skipping », track switch ⇄.
+    if (tier.showStatusIcons) {
       ctx.save();
-      const size = Math.max(10, wid + 5);
+      const size = Math.max(10, wid + 4);
       ctx.font = `700 ${size}px ${FONT_STACK}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.lineWidth = 3;
       ctx.strokeStyle = PALETTE.labelHalo;
-      for (const j of icons) {
+      for (let j = 0; j < k; j++) {
         const i = this.trainIdx[j];
         const s = trains.status[i];
-        const glyph =
-          s & STATUS.SHORT_TURNING ? "↺" : s & STATUS.GAP_TRAIN ? "✚" : s & STATUS.SKIPPING_NEXT ? "»" : "⇄";
-        const color = s & STATUS.GAP_TRAIN ? PALETTE.gap : s & STATUS.SHORT_TURNING ? PALETTE.highlight : "#ffffff";
-        const g = geo[j];
-        const oy = (capsule ? len / 2 : r) + size * 0.55;
-        ctx.strokeText(glyph, g.x, g.y - oy);
+        if (!(s & (STATUS.SHORT_TURNING | STATUS.GAP_TRAIN | STATUS.SKIPPING_NEXT | STATUS.TRACK_SWITCH))) continue;
+        const glyph = s & STATUS.SHORT_TURNING ? "↺" : s & STATUS.GAP_TRAIN ? "✚" : s & STATUS.SKIPPING_NEXT ? "»" : "⇄";
+        const color = s & STATUS.GAP_TRAIN ? PALETTE.gap : s & STATUS.SHORT_TURNING ? PALETTE.highlight : PALETTE.glyph;
+        // Just above the pill's own vertical extent (a horizontal pill is short, a vertical one tall).
+        const oy = h * Math.abs(this.tuy[j]) + r + size * 0.5;
+        ctx.strokeText(glyph, this.tx[j], this.ty[j] - oy);
         ctx.fillStyle = color;
-        ctx.fillText(glyph, g.x, g.y - oy);
+        ctx.fillText(glyph, this.tx[j], this.ty[j] - oy);
       }
       ctx.restore();
     }
