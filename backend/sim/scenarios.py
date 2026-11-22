@@ -166,8 +166,15 @@ def _trunk_groups_available(g: Graph) -> list[tuple[str, tuple[str, ...]]]:
 # --------------------------------------------------------------------------------------
 # Samplers
 # --------------------------------------------------------------------------------------
-def sample_training_scenario(rng: np.random.Generator, stage: int, graph: Graph) -> Scenario:
-    """Draw a training scenario for curriculum ``stage`` (1 or 2), see ARCHITECTURE §4.6."""
+def sample_training_scenario(rng: np.random.Generator, stage: int, graph: Graph, *, calm_frac: float = 0.0) -> Scenario:
+    """Draw a training scenario for curriculum ``stage`` (1 or 2), see ARCHITECTURE §4.6.
+
+    ``calm_frac`` (Stage 2 only): the probability of a *calm anchor* episode with no
+    disruptions; headway jitter and the domain randomization are drawn as usual. With the
+    default 0 no extra random number is drawn, so the draws are exactly the pre-WP5b ones.
+    """
+    if not 0.0 <= float(calm_frac) <= 1.0:
+        raise ValueError(f"calm_frac must be in [0, 1], got {calm_frac!r}")
     seed = int(rng.integers(0, C.TRAINING_SEED_MAX))
     if stage == 1:
         groups = _trunk_groups_available(graph)
@@ -183,9 +190,12 @@ def sample_training_scenario(rng: np.random.Generator, stage: int, graph: Graph)
     if stage == 2:
         profile = C.PROFILES[int(rng.integers(len(C.PROFILES)))]
         episode_s = C.STAGE2_EPISODE_S
-        n_dis = int(rng.integers(1, 5))
-        dis = _draw_disruptions(rng, graph, profile, None, n_dis, episode_s,
-                                C.DISRUPTION_START_RANGE_S, C.DISRUPTION_DURATION_RANGE_S, 0.15)
+        if calm_frac > 0.0 and rng.random() < calm_frac:
+            dis: tuple[ScheduledDisruption, ...] = ()  # calm anchor: nothing to fix, jitter still on
+        else:
+            n_dis = int(rng.integers(1, 5))
+            dis = _draw_disruptions(rng, graph, profile, None, n_dis, episode_s,
+                                    C.DISRUPTION_START_RANGE_S, C.DISRUPTION_DURATION_RANGE_S, 0.15)
         return Scenario(
             seed=seed,
             profile=profile,

@@ -32,10 +32,16 @@ Twin construction (``twin_mode``) - all three are equivalent, the tests prove it
   non-CONTINUE action. Until then the AI sim *is* the Normal trajectory (deterministic sim,
   identical CONTINUE-only inputs), so no second simulator has to be ticked during calm
   stretches before the agent first intervenes.
+
+Per-train credit data (``credit_info=True``, WP5b, ARCHITECTURE §4.4): both sims track
+``cost_vectors()`` and ``info`` adds ``t_s``, ``route``, ``imm_cost``, ``d_flow_global`` and
+``d_route`` (route-scoped flow deltas, :func:`rl.credit.scope_weights`). The reward above is
+unchanged: ``reward == clip(-REWARD_SCALE * (imm_cost + d_flow_global), +-REWARD_CLIP)``.
 """
 
 from __future__ import annotations
 
+import functools
 import logging
 from collections.abc import Callable
 from typing import Any, Literal
@@ -44,6 +50,7 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
+from rl.credit import NEIGHBOR_W, scope_weights
 from sim import NYCSubwaySim, Scenario, load_graph, sample_training_scenario
 from sim import constants as C
 from sim.engine import DecisionBatch, empty_batch
@@ -104,15 +111,28 @@ class SubwayDominoEnv(gym.Env[np.ndarray, np.int64]):
         scenario_fn: ScenarioFn | None = None,
         *,
         twin_mode: TwinMode = "lazy",
+        credit_info: bool = True,
+        scope_neighbor_weight: float = NEIGHBOR_W,
+        calm_frac: float = 0.0,
     ) -> None:
         super().__init__()
         if twin_mode not in ("lazy", "copy", "reset"):
             raise ValueError(f"unknown twin_mode {twin_mode!r}")
+        if not 0.0 <= float(calm_frac) <= 1.0:
+            raise ValueError(f"calm_frac must be in [0, 1], got {calm_frac!r}")
         self.stage = self._check_stage(stage)
         self.graph_path = graph_path
         self.graph: Graph = load_graph(graph_path)  # cached per process, shared read-only
-        self.scenario_fn: ScenarioFn = scenario_fn if scenario_fn is not None else sample_training_scenario
+        if scenario_fn is None:
+            scenario_fn = (functools.partial(sample_training_scenario, calm_frac=float(calm_frac)) if calm_frac > 0
+                           else sample_training_scenario)
+        self.scenario_fn: ScenarioFn = scenario_fn
         self.twin_mode: TwinMode = twin_mode
+        #: per-step credit data in ``info`` (WP5b, ``rl.credit``): the sims track cost vectors
+        self.credit_info = bool(credit_info)
+        self.scope_neighbor_weight = float(scope_neighbor_weight)
+        if self.credit_info:
+            self._w_plat, self._w_rt = scope_weights(self.graph, self.scope_neighbor_weight)
         self.observation_space = spaces.Box(-1.0, 1.0, (C.OBS_DIM,), dtype=np.float32)
         self.action_space = spaces.Discrete(C.N_ACTIONS)
         self._init_seed = seed
@@ -196,6 +216,8 @@ class SubwayDominoEnv(gym.Env[np.ndarray, np.int64]):
             self._needs_reset = True
             zero = np.zeros(len(C.COST_KEYS))
             info = self._step_info(a, True, zero, zero, 0, -1)
+            if self.credit_info:
+                info.update(self._credit_info(0.0, -1, 0.0))
             info["episode_summary"] = self._episode_summary()
             return _ZERO_OBS.copy(), 0.0, False, True, info
 
@@ -212,16 +234,25 @@ class SubwayDominoEnv(gym.Env[np.ndarray, np.int64]):
         ai_before = _cost_vector(ai)
         twin = self._twin
         twin_before = _cost_vector(twin) if twin is not None else ai_before
+        credit = self.credit_info
+        if credit:
+            t_s, route = ai.episode_time_s, int(ai.tr_route[tid])
 
         events = ai.apply_actions(np.array([tid], dtype=np.int64), np.array([a], dtype=np.int64))
         applied = a == C.A_CONTINUE or (bool(events) and bool(events[0].applied))
         if applied:
             ep.applied[a] += 1
+        if credit:
+            after_apply = float(ai.cost[_I_TOTAL])  # the sim charges immediate costs at apply time
 
         self._row += 1
         ticks = 0
         truncated = False
+        snap = None
         if self._row >= len(batch):
+            if credit and twin is not None:
+                snap = (ai.cost_plat.copy(), ai.cost_route_train.copy(), twin.cost_plat.copy(),
+                        twin.cost_route_train.copy())
             t0 = ep.ticks
             truncated = not self._advance(check_current=False)
             ticks = ep.ticks - t0
@@ -237,6 +268,17 @@ class SubwayDominoEnv(gym.Env[np.ndarray, np.int64]):
         ep.clipped += int(reward != raw)
 
         info = self._step_info(a, applied, d_ai, d_twin, ticks, tid)
+        if credit:
+            imm = after_apply - float(ai_before[_I_TOTAL])
+            if snap is None or ticks == 0:  # no ticks, or before the lazy fork: no flow difference
+                info.update(self._credit_info(t_s, route, imm))
+            else:
+                d_flow = (float(ai.cost[_I_TOTAL]) - after_apply) - float(d_twin[_I_TOTAL])
+                pa, ra, pt, rt = snap
+                d_plat = (ai.cost_plat - pa) - (twin.cost_plat - pt)  # type: ignore[union-attr]
+                d_rt = (ai.cost_route_train - ra) - (twin.cost_route_train - rt)  # type: ignore[union-attr]
+                d_route = (self._w_plat @ d_plat + self._w_rt @ d_rt).astype(np.float32)
+                info.update(self._credit_info(t_s, route, imm, d_flow, d_route))
         if truncated:
             self._needs_reset = True
             info["episode_summary"] = self._episode_summary()
@@ -257,6 +299,7 @@ class SubwayDominoEnv(gym.Env[np.ndarray, np.int64]):
     def _start_episode(self, sc: Scenario) -> None:
         if self._ai is None:
             self._ai = NYCSubwaySim(self.graph, sc)
+            self._ai.track_cost_vectors = self.credit_info
         else:
             self._ai.reset(sc)
         self._scenario = sc
@@ -265,6 +308,7 @@ class SubwayDominoEnv(gym.Env[np.ndarray, np.int64]):
             self._twin = self._ai.copy()
         elif self.twin_mode == "reset":
             self._twin = NYCSubwaySim(self.graph, sc)
+            self._twin.track_cost_vectors = self.credit_info
             ha, ht = self._ai.state_hash(), self._twin.state_hash()
             if ha != ht:  # pragma: no cover - would mean the sim is not deterministic
                 raise RuntimeError(f"AI sim and Normal twin differ after reset ({ha} != {ht})")
@@ -331,6 +375,17 @@ class SubwayDominoEnv(gym.Env[np.ndarray, np.int64]):
             "cost_ai": _cost_dict(d_ai),
             "cost_twin": _cost_dict(d_twin),
             "twin_advantage": float(d_twin[_I_TOTAL] - d_ai[_I_TOTAL]),
+        }
+
+    def _credit_info(self, t_s: float, route: int, imm: float, d_flow: float = 0.0,
+                     d_route: np.ndarray | None = None) -> dict[str, Any]:
+        """Per-step credit data (``rl.credit``): unscaled costs, AI minus twin, flow terms only."""
+        return {
+            "t_s": float(t_s),  # episode seconds at this decision
+            "route": int(route),  # the ego's route index (-1: no ego)
+            "imm_cost": float(imm),  # immediate cost charged by this action (0 if not applied)
+            "d_flow_global": float(d_flow),  # (dC_ai - dC_twin) of the ticks of this step, no immediate costs
+            "d_route": np.zeros(self.graph.n_routes, dtype=np.float32) if d_route is None else d_route,
         }
 
     def _episode_summary(self) -> dict[str, Any]:

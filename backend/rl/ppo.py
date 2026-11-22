@@ -16,6 +16,18 @@ Rewards may be normalized by a running estimate of the discounted-return standar
 so the shared global gradient-norm clip does not starve the policy gradient. Raw rewards are
 still what gets logged.
 
+Credit assignment (``credit``):
+
+* ``"per-train"`` (the ``rl.train`` default, WP5b): every train is its own semi-MDP
+  (:mod:`rl.credit`). The buffer is rebuilt every rollout and holds exactly the transitions
+  that closed in it: their own next decision was seen, or their episode ended. Open ones are
+  carried to the worker's next rollout, and their values are recomputed with the current critic
+  before the GAE. Rewards are route-scoped twin deltas discounted per sim-minute (``gamma_min``),
+  normalized by the running std of the per-train returns, and the mini-batch size is
+  re-derived from the number of closed transitions.
+* ``"serial"`` (the class default; the WP5 baseline, kept as an ablation): the per-worker
+  segment GAE below, unchanged.
+
 Checkpoints saved by this class load with plain ``MaskablePPO.load`` (``sim.policy.Sb3ZipPolicy``,
 ``rl.export_onnx``).
 """
@@ -31,12 +43,25 @@ from sb3_contrib.common.maskable.buffers import MaskableRolloutBuffer
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import VecEnv
 
-from rl.rollout import RolloutWorkers, Segment, mlp_params_from_policy
+from rl.credit import (
+    GAMMA_MIN,
+    MAX_CARRY,
+    SCOPES,
+    PerTrainCredit,
+    TransitionReturnNormalizer,
+    assemble,
+    per_rollout_batch_size,
+)
+from rl.rollout import MlpParams, NumpyActorCritic, RolloutWorkers, Segment, mlp_params_from_policy
 from sim import constants as C
+
+CREDIT_MODES: tuple[str, ...] = ("per-train", "serial")
 
 
 class ReturnNormalizer:
     """Running std of the discounted return per worker (SB3 ``VecNormalize`` reward rule)."""
+
+    kind = "serial"  # its state_dict() has no "kind" key (unchanged format)
 
     def __init__(self, gamma: float, clip: float = 10.0, epsilon: float = 1e-8) -> None:
         self.gamma = float(gamma)
@@ -95,10 +120,31 @@ def segment_gae(seg_rewards: np.ndarray, values: np.ndarray, dones: np.ndarray, 
 class ChunkedMaskablePPO(MaskablePPO):
     """MaskablePPO whose rollouts come from :class:`RolloutWorkers` (one barrier per rollout)."""
 
-    def __init__(self, *args: Any, rollout_chunk: int = 64, normalize_reward: bool = True, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *args: Any,
+        rollout_chunk: int = 64,
+        normalize_reward: bool = True,
+        credit: str = "serial",
+        gamma_min: float = GAMMA_MIN,
+        reward_scope: str = "route",
+        batch_target: int = 2048,
+        max_carry: int = MAX_CARRY,
+        **kwargs: Any,
+    ) -> None:
+        if credit not in CREDIT_MODES:
+            raise ValueError(f"credit must be one of {CREDIT_MODES}, got {credit!r}")
+        if reward_scope not in SCOPES:
+            raise ValueError(f"reward_scope must be one of {SCOPES}, got {reward_scope!r}")
         self.rollout_chunk = int(rollout_chunk)
         self.normalize_reward = bool(normalize_reward)
-        self.reward_normalizer: ReturnNormalizer | None = None
+        self.credit = str(credit)
+        self.gamma_min = float(gamma_min)
+        self.reward_scope = str(reward_scope)
+        self.batch_target = int(batch_target)
+        self.max_carry = int(max_carry)
+        self.reward_normalizer: ReturnNormalizer | TransitionReturnNormalizer | None = None
+        self.train_credit: PerTrainCredit | None = None  # open transitions (never saved: dropped on resume)
         self.should_stop: Any = None  # optional callable polled between chunks (graceful SIGINT)
         self.last_rollout: dict[str, Any] = {}
         super().__init__(*args, **kwargs)
@@ -110,12 +156,15 @@ class ChunkedMaskablePPO(MaskablePPO):
             self.n_steps * self.n_envs, self.observation_space, self.action_space, device=self.device,
             gamma=self.gamma, gae_lambda=self.gae_lambda, n_envs=1,
         )
+        per_train = self.credit == "per-train"
         if self.normalize_reward and self.reward_normalizer is None:
-            self.reward_normalizer = ReturnNormalizer(self.gamma)
+            self.reward_normalizer = TransitionReturnNormalizer() if per_train else ReturnNormalizer(self.gamma)
+        if per_train and self.train_credit is None:
+            self.train_credit = PerTrainCredit(self.gamma_min, self.max_carry)
 
     def _excluded_save_params(self) -> list[str]:
         # keep the zip loadable by plain MaskablePPO.load (no rl.* objects pickled inside)
-        return [*super()._excluded_save_params(), "reward_normalizer", "should_stop", "last_rollout"]
+        return [*super()._excluded_save_params(), "reward_normalizer", "train_credit", "should_stop", "last_rollout"]
 
     # ------------------------------------------------------------------ rollouts
     def collect_rollouts(  # type: ignore[override]
@@ -134,15 +183,22 @@ class ChunkedMaskablePPO(MaskablePPO):
         callback.on_rollout_start()
         total = n_rollout_steps * env.num_envs
         t0 = time.perf_counter()
-        segments = env.collect(mlp_params_from_policy(self.policy), total, self.rollout_chunk, self.should_stop)
+        params = mlp_params_from_policy(self.policy)
+        segments = env.collect(params, total, self.rollout_chunk, self.should_stop)
         collect_s = time.perf_counter() - t0
         if segments is None:
             return False
-        self._fill_buffer(rollout_buffer, segments)
+        credit_stats = None
+        if self.credit == "serial":
+            self._fill_buffer(rollout_buffer, segments)
+        else:
+            credit_stats = self._fill_buffer_per_train(segments, params)
         n = sum(len(s) for s in segments)
-        self.num_timesteps += n
+        self.num_timesteps += n  # env steps collected, whatever the number of closed transitions
         self._update_info_buffer([{"episode": {k: e[k] for k in ("r", "l", "t")}} for s in segments for e in s.episodes])
         self._log_rollout(segments, collect_s)
+        if credit_stats is not None:
+            self._log_credit(credit_stats)
         callback.update_locals(locals())
         if not callback.on_step():
             return False
@@ -176,6 +232,56 @@ class ChunkedMaskablePPO(MaskablePPO):
             pos += n
         buf.pos = rows
         buf.full = True
+
+    def _fill_buffer_per_train(self, segments: list[Segment], params: MlpParams) -> dict[str, float]:
+        """Rebuild ``self.rollout_buffer`` with exactly the transitions closed in this rollout."""
+        if not all(s.has_credit for s in segments):
+            raise RuntimeError("per-train credit needs env credit_info (EnvFactory(credit_info=True))")
+        assert self.train_credit is not None
+        norm = self.reward_normalizer
+        if norm is not None and not isinstance(norm, TransitionReturnNormalizer):
+            raise TypeError("per-train credit needs a TransitionReturnNormalizer")
+        t0 = time.perf_counter()
+        critic = NumpyActorCritic(params)  # the critic that collected this rollout (current weights)
+        batch = assemble(self.train_credit, segments, critic.value, self.gae_lambda, scope=self.reward_scope,
+                         normalizer=norm, reward_clip=C.REWARD_CLIP)
+        batch.stats["credit_s"] = time.perf_counter() - t0
+        n = len(batch)
+        buf = MaskableRolloutBuffer(n, self.observation_space, self.action_space, device=self.device,
+                                    gamma=self.gamma, gae_lambda=self.gae_lambda, n_envs=1)
+        buf.observations[:, 0] = batch.obs
+        buf.actions[:, 0, 0] = batch.actions
+        buf.rewards[:, 0] = batch.rewards
+        buf.values[:, 0] = batch.values
+        buf.log_probs[:, 0] = batch.log_probs
+        buf.advantages[:, 0] = batch.advantages
+        buf.returns[:, 0] = batch.returns
+        buf.action_masks[:, 0] = batch.masks
+        buf.episode_starts[:, 0] = 0.0
+        buf.pos = n
+        buf.full = True
+        self.rollout_buffer = buf
+        self.batch_size = per_rollout_batch_size(n, self.batch_target)
+        return batch.stats
+
+    def train(self) -> None:
+        if self.credit != "serial" and self.rollout_buffer.buffer_size < 2:
+            self.logger.record("train/skipped_small_rollout", 1)  # nothing closed yet (tiny rollouts only)
+            return
+        super().train()
+
+    def _log_credit(self, st: dict[str, float]) -> None:
+        rec = self.logger.record
+        for k in ("closed", "carried", "carried_closed", "forced_terminal", "mean_interval_s", "R_mean", "R_std",
+                  "R_norm_std", "R_clip_frac"):
+            rec(f"rollout/{k}", st[k])
+        if "norm_std" in st:
+            rec("rollout/return_norm_std", st["norm_std"])
+        if np.isfinite(st["scope_global_corr"]):
+            rec("credit/scope_global_corr", st["scope_global_corr"])
+        rec("credit/batch_size", self.batch_size)
+        rec("perf/credit_s", st["credit_s"])
+        self.last_rollout["credit"] = dict(st)
 
     def _log_rollout(self, segments: list[Segment], collect_s: float) -> None:
         n = sum(len(s) for s in segments)

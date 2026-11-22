@@ -144,6 +144,24 @@ class Chunk:
     ticks: int
     busy_s: float
     episodes: list[dict[str, Any]] = field(default_factory=list)
+    credit: dict[str, np.ndarray] | None = None  # per-step credit data (CREDIT_FIELDS), env.credit_info only
+
+
+#: per-step fields for per-train credit assignment (``rl.credit``), from the env ``info``
+CREDIT_FIELDS: tuple[str, ...] = ("t_s", "step_ticks", "train_ids", "routes", "imm", "d_glob", "d_route", "ep")
+
+
+def _credit_buffers(n: int, n_routes: int) -> dict[str, np.ndarray]:
+    return {
+        "t_s": np.empty(n, dtype=np.float64),  # episode seconds at the decision
+        "step_ticks": np.empty(n, dtype=np.int32),  # ticks advanced in the step
+        "train_ids": np.empty(n, dtype=np.int64),  # ego train slot (-1: no ego)
+        "routes": np.empty(n, dtype=np.int16),  # ego route (-1: no ego)
+        "imm": np.empty(n, dtype=np.float64),  # immediate cost of the action (unscaled)
+        "d_glob": np.empty(n, dtype=np.float64),  # citywide flow-cost difference AI - twin (unscaled)
+        "d_route": np.empty((n, n_routes), dtype=np.float32),  # route-scoped flow-cost differences
+        "ep": np.empty(n, dtype=np.int64),  # episode ordinal of this worker
+    }
 
 
 def _collect(env: Any, net: NumpyActorCritic, n: int, rng: np.random.Generator, state: dict[str, Any]) -> Chunk:
@@ -159,6 +177,7 @@ def _collect(env: Any, net: NumpyActorCritic, n: int, rng: np.random.Generator, 
     ticks = 0
     t0 = time.perf_counter()
     obs = state["obs"]
+    cr = _credit_buffers(n, env.graph.n_routes) if getattr(env, "credit_info", False) else None
     for t in range(n):
         mask = env.action_masks()
         a, logp = sample_masked(net.logits(obs), mask, rng)
@@ -171,6 +190,15 @@ def _collect(env: Any, net: NumpyActorCritic, n: int, rng: np.random.Generator, 
         rew_b[t] = r
         ticks += int(info["ticks"])
         applied[a] += bool(info["applied"])
+        if cr is not None:
+            cr["t_s"][t] = info["t_s"]
+            cr["step_ticks"][t] = info["ticks"]
+            cr["train_ids"][t] = info["train_id"]
+            cr["routes"][t] = info["route"]
+            cr["imm"][t] = info["imm_cost"]
+            cr["d_glob"][t] = info["d_flow_global"]
+            cr["d_route"][t] = info["d_route"]
+            cr["ep"][t] = state["ep_ord"]
         state["ep_r"] += float(r)
         state["ep_l"] += 1
         if terminated or truncated:
@@ -178,10 +206,10 @@ def _collect(env: Any, net: NumpyActorCritic, n: int, rng: np.random.Generator, 
             episodes.append({"r": state["ep_r"], "l": state["ep_l"], "t": time.time() - state["ep_t0"],
                              "summary": info.get("episode_summary", {})})
             obs, _ = env.reset()
-            state.update(ep_r=0.0, ep_l=0, ep_t0=time.time())
+            state.update(ep_r=0.0, ep_l=0, ep_t0=time.time(), ep_ord=state["ep_ord"] + 1)
     state["obs"] = obs
     return Chunk(obs_b, act_b, logp_b, val_b, mask_b, rew_b, done_b, float(net.value(obs)), applied, ticks,
-                 time.perf_counter() - t0, episodes)
+                 time.perf_counter() - t0, episodes, cr)
 
 
 def _worker_main(conn: Connection, factory: EnvFactory, seed: int, worker_id: int) -> None:
@@ -191,7 +219,7 @@ def _worker_main(conn: Connection, factory: EnvFactory, seed: int, worker_id: in
         env = factory()
         rng = np.random.default_rng([int(seed), int(worker_id), 0x5D])
         obs, _ = env.reset(seed=int(seed) + int(worker_id))
-        state: dict[str, Any] = {"obs": obs, "ep_r": 0.0, "ep_l": 0, "ep_t0": time.time()}
+        state: dict[str, Any] = {"obs": obs, "ep_r": 0.0, "ep_l": 0, "ep_t0": time.time(), "ep_ord": 0}
         net: NumpyActorCritic | None = None
         while True:
             cmd, data = conn.recv()
@@ -256,9 +284,22 @@ class Segment:
     ticks: int
     busy_s: float
     episodes: list[dict[str, Any]]
+    # per-step credit data (CREDIT_FIELDS; None unless the env has credit_info)
+    t_s: np.ndarray | None = None
+    step_ticks: np.ndarray | None = None
+    train_ids: np.ndarray | None = None
+    routes: np.ndarray | None = None
+    imm: np.ndarray | None = None
+    d_glob: np.ndarray | None = None
+    d_route: np.ndarray | None = None
+    ep: np.ndarray | None = None
 
     def __len__(self) -> int:
         return int(self.actions.shape[0])
+
+    @property
+    def has_credit(self) -> bool:
+        return self.t_s is not None
 
 
 def _concat(worker: int, chunks: list[Chunk]) -> Segment:
@@ -277,6 +318,8 @@ def _concat(worker: int, chunks: list[Chunk]) -> Segment:
         ticks=sum(c.ticks for c in chunks),
         busy_s=sum(c.busy_s for c in chunks),
         episodes=[e for c in chunks for e in c.episodes],
+        **({k: cat([c.credit[k] for c in chunks]) for k in CREDIT_FIELDS}  # type: ignore[index]
+           if all(c.credit is not None for c in chunks) else {}),
     )
 
 

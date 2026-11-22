@@ -161,7 +161,13 @@ def test_tunnel_cost_dominates_hold_cost() -> None:
     for sel in (np.array([False, True, False]), np.array([False, False, True])):
         tunnel = K.train_cost(sel, onboard, C.W_TUNNEL_TRAIN, C.W_TUNNEL_RIDER, 1.0)
         hold = K.train_cost(sel, onboard, C.W_HOLD_TRAIN, C.W_HOLD_RIDER, 1.0)
-        assert tunnel > 15 * hold
+        assert tunnel > 2 * hold  # even the first tunnel minute costs more than an open-door hold
+        # PRD "tunnel >> hold" over a realistic 10-minute stoppage (trapped riders weigh a^1.5)
+        tunnel_10 = sum(
+            K.train_cost(sel, onboard * K.trapped_age_weight(np.full(3, float(a))), C.W_TUNNEL_TRAIN, C.W_TUNNEL_RIDER, 1.0)
+            for a in range(1, 11)
+        )
+        assert tunnel_10 > 15 * (10 * hold)
     more = K.train_cost(np.array([True, True, False]), onboard, C.W_TUNNEL_TRAIN, C.W_TUNNEL_RIDER, 1.0)
     assert more > K.train_cost(one, onboard, C.W_TUNNEL_TRAIN, C.W_TUNNEL_RIDER, 1.0)
 
