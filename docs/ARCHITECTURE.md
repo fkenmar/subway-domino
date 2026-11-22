@@ -292,6 +292,9 @@ class NYCSubwaySim:
     def metrics(self) -> dict                       # §3.8 — keys exactly: clock_s, avg_wait_min, overcrowded_platforms, tunnel_stuck_trains,
                                                     #        riders_served, riders_waiting, riders_onboard, trains_active
     def cost_totals(self) -> dict[str, float]       # cumulative PRD §4.3 cost terms since reset: wait, tunnel, hold, crowd, short_turn, skip, reroute, yard, total
+    def cost_vectors(self) -> dict[str, np.ndarray] # training only (§4.4 credit): copies of {"platform": f64[n_platforms] wait+crowd,
+                                                    #   "route_train": f64[n_routes] tunnel+hold}; accumulate only while track_cost_vectors
+                                                    #   (default False) is set; excluded from state_hash()
     def action_counts(self) -> dict[str, int]       # non-CONTINUE actions applied since reset, by ACTION_NAMES
     def frame(self) -> dict[str, np.ndarray]        # §3.9 wire arrays
     def state_hash(self) -> str                     # deterministic hash of all mutable state (tests)
@@ -511,7 +514,7 @@ Immediate (at action time): short_turn = W_ST · riders_forced_off; skip = W_SKI
 | `W_TUNNEL_TRAIN` | 200 |
 | `W_TUNNEL_RIDER` | 1.0 |
 | `W_HOLD_TRAIN` | 10 |
-| `W_HOLD_RIDER` | 0.05 (tunnel ≫ hold) |
+| `W_HOLD_RIDER` | 0.05 (tunnel ≫ hold; WP5c tried 0.5: fewer holds but no wait gain, so reverted) |
 | `W_CROWD` | 500 |
 | `W_ST` | 10 |
 | `W_SKIP` | 5 |
@@ -528,15 +531,28 @@ The RL owner may recalibrate these values. Any change is made only in `constants
 - The twin is action-independent, so this is an unbiased variance-reduced signal.
 - With deterministic fluid demand, regions untouched by AI actions contribute exactly 0. Credit concentrates where actions mattered, and the return is exactly "how much better than Normal Schedule", which is the product's claim.
 
+**Training credit: per-train semi-MDP (WP5b, `rl/credit.py`; the training default).** The env reward above is unchanged, and so are the env checkers, plain MaskablePPO and evaluation. The trainer builds its own per-train reward from the same twin difference, split by where the cost arose:
+- With `track_cost_vectors` set (the env sets it), each sim also accumulates `cost_vectors()`: wait + crowd per platform and tunnel + hold per route's trains (`sim/cost.py tick_cost_vectors`, in the same tick code as `cost_totals()`; their sums equal the scalar terms within 1e-9 relative). Immediate action costs stay with the acting train.
+- Scope of an ego on route r (`scope_weights`): a platform weighs 1 if r serves it, `NEIGHBOR_W` (0.35, `--scope-neighbor-weight`) if a route that shares a run edge with r serves it, else 0; trains of r weigh 1, those of track-sharing routes `NEIGHBOR_W`, others 0. `d_route[r] = W_plat[r]·(Δplat_ai − Δplat_twin) + W_rt[r]·(Δrt_ai − Δrt_twin)` per step.
+- Train i decides at step k (episode time t_k) and next decides at k′ (or the episode ends):
+  ```
+  R_k     = −REWARD_SCALE · (imm_k + Σ_{m=k}^{k′−1} γ_min^((t_mid(m) − t_k)/60) · d_route_m[r_i])     t_mid(m) = t_m + ticks_m·DT_S/2
+  Γ_k     = γ_min^((t_k′ − t_k)/60)          γ_min = 0.96 per sim-minute (17-min half-life), --gamma-min
+  δ_k     = R_k + Γ_k·V(o_k′) − V(o_k)       the episode horizon is terminal (no bootstrap)
+  A_k     = δ_k + Γ_k·λ·A_k′                 λ = 0.95 per own decision; returns A + V
+  ```
+- `--reward-scope global` uses the citywide `d_flow_global` instead of `d_route` (ablation). Under all-CONTINUE play every `d_route`, `d_flow_global` and R is exactly 0 (tests, all three twin modes).
+- `--credit serial` is the WP5 baseline, kept as an ablation and bit-identical to it: one GAE chain per worker over the interleaved decisions, γ = 0.995 per decision, the env's citywide reward.
+
 ### 4.5 Gym env — CONTRACT (`rl/env.py`)
 
 `SubwayDominoEnv(gymnasium.Env)`:
-- `__init__(stage: int = 2, seed: int | None = None, graph_path: str | None = None, scenario_fn=None, *, twin_mode: str = "lazy")`. Twin modes: `lazy` forks `sim.copy()` just before the first non-CONTINUE action; `copy` and `reset` are alternatives. Tests prove all three are bit-identical.
+- `__init__(stage: int = 2, seed: int | None = None, graph_path: str | None = None, scenario_fn=None, *, twin_mode: str = "lazy", credit_info: bool = True, scope_neighbor_weight: float = 0.35, calm_frac: float = 0.0)`. Twin modes: `lazy` forks `sim.copy()` just before the first non-CONTINUE action; `copy` and `reset` are alternatives. Tests prove all three are bit-identical. `calm_frac` is passed to the Stage 2 sampler (§4.6).
 - `observation_space = Box(-1, 1, (OBS_DIM,), float32)`, `action_space = Discrete(8)`
 - `action_masks() -> np.ndarray[bool, 8]` returns the current ego's mask.
 - `reset(seed, options)` samples a scenario (`options={"scenario": Scenario}` overrides) and advances to the first decision.
 - `step(a)` returns `(obs, reward, terminated=False, truncated, info)`. `truncated` is set when `tick·DT_S ≥ episode_s`. Then `obs` is a zero vector and the next mask is CONTINUE-only.
-- `info` carries the `cost_totals` deltas for AI and twin and the action name.
+- `info` carries the `cost_totals` deltas for AI and twin and the action name. With `credit_info` (default) it also carries the §4.4 per-train credit data, all unscaled: `t_s` (episode seconds at this decision), `route` (ego route index), `imm_cost` (immediate cost of this action; 0 if not applied), `d_flow_global` ((ΔC_ai − ΔC_twin) of this step's ticks without immediate costs, so `reward == clip(−REWARD_SCALE·(imm_cost + d_flow_global), ±REWARD_CLIP)`) and `d_route` (float32[n_routes] scoped flow deltas). Before a lazy fork all deltas are 0.
 - Episodes with no decision at all are skipped by resampling (cap 5 tries, then return a dummy CONTINUE-only step).
 
 ### 4.6 Training — GUIDANCE with CONTRACT outputs (`rl/train.py`)
@@ -558,7 +574,22 @@ The RL owner may recalibrate these values. Any change is made only in `constants
   | `learning_rate` | 3e-4 → 5e-5, linear |
   | `max_grad_norm` | 0.5 |
 
-- No `VecNormalize` on observations (obs are already normalized by `build_obs`). Reward normalization uses `ReturnNormalizer` inside `ChunkedMaskablePPO`. It follows the same rule as `VecNormalize(norm_reward=True)`, and its state is saved in `train_state.json`.
+- No `VecNormalize` on observations (obs are already normalized by `build_obs`).
+- **Credit assignment** (`--credit`, WP5b): `per-train` (default) trains on the §4.4 per-train semi-MDP; `serial` is the WP5 baseline (ablation, bit-identical to it).
+
+  | Setting | `per-train` (default) | `serial` |
+  |---|---|---|
+  | Transition | one train's decision → its next own decision (or episode end) | one global decision → the next decision of any train |
+  | Discount | `--gamma-min 0.96` per sim-minute | `gamma` 0.995 per decision |
+  | λ | 0.95 per own decision | 0.95 per global decision |
+  | Reward | route-scoped twin delta (`--reward-scope route`, `--scope-neighbor-weight 0.35`) | env reward (citywide twin delta) |
+  | Reward normalization | running std (Welford) of the per-train returns `G_k = R_k + Γ_k·G_k′`; R / std clipped to ±10 | `ReturnNormalizer` (`VecNormalize(norm_reward=True)` rule) |
+  | Buffer | rebuilt each rollout with exactly the closed transitions; mini-batch `ceil(N / max(1, round(N/2048)))` | `n_envs·n_steps` rows, `batch_size` |
+  | `--target-kl` | 0.02 | none |
+  | `--calm-frac` | 0.12 | 0 |
+
+  Both normalizers' state is saved in `train_state.json` (`reward_normalizer`; the per-train one has `"kind": "per_train"` and is only restored into a per-train run), next to the resolved `credit` settings. `--no-reward-norm` disables either.
+- **Per-train rollout boundaries.** A transition whose train has not decided again yet, in a running episode, is *open*. It is carried into its worker's next rollout (the env state persists) and closed there; before the GAE its V is recomputed with the current critic, while its behavior `log_prob` is kept. The λ-recursion is truncated at an open transition, the way truncated GAE treats a rollout end. A transition still open after more than 3 rollouts is closed as terminal, and `--resume` drops the carry set. `num_timesteps` counts env steps collected. Logged: `rollout/closed`, `rollout/carried`, `rollout/mean_interval_s`, `rollout/R_mean`, `rollout/R_std`, `credit/scope_global_corr` (scoped vs. global R over the same intervals) and the usual action and mask rates.
 - **Collection** (`rl/rollout.py`, `rl/ppo.py`): spawned `RolloutWorkers` each run the current policy in NumPy over 64-step chunks, handed out dynamically, with one barrier per rollout. SB3's per-step `SubprocVecEnv` loop managed only 15 % parallel efficiency, because step times are heavy-tailed. The MaskablePPO update and the checkpoint format are unchanged (`MaskablePPO.load` works), and the env remains `SubprocVecEnv(spawn)`-safe.
 - GAE treats the `episode_s` horizon as terminal and does not bootstrap from the zero terminal observation. The objective is finite-horizon and the observation carries `time_in_episode_frac`. The env still returns `truncated=True`.
 
@@ -568,7 +599,7 @@ The RL owner may recalibrate these values. Any change is made only in `constants
 |---|---|---|
 | Steps | default 3M | default 10M |
 | Routes operated | one random trunk group per episode (Lexington 4/5/6/6X, 7 Av 1/2/3, 8 Av A/C/E, 6 Av B/D/F/FX/M, Broadway N/Q/R/W, QBL E/F/M/R, Flushing 7/7X, Canarsie L, Nassau J/Z/M, Crosstown G) | all routes |
-| Disruptions | 1–2 on that trunk, plus random headway jitter (bunching) | 1–4 anywhere, all kinds |
+| Disruptions | 1–2 on that trunk, plus random headway jitter (bunching) | 1–4 anywhere, all kinds; a `--calm-frac` share (per-train default 0.12) are calm anchors with none (jitter and domain randomization as usual), against over-intervention on mild days |
 | Profile | random | all 4 profiles |
 | Episode | 3600 s | 5400 s |
 | Domain randomization | — | `demand_scale` U[0.8,1.3], `dwell_scale` U[0.85,1.25], `speed_scale` U[0.9,1.05], disruption start U[300,1500] s, duration U[600,2400] s or until end |
@@ -578,7 +609,7 @@ The RL owner may recalibrate these values. Any change is made only in `constants
 **Outputs**, under `--run-dir` (Colab: `/content/drive/MyDrive/subway-domino/runs/<name>`):
 - `checkpoints/ckpt_<steps>.zip` every 250k steps, written atomically (tmp then rename) and keeping the last 5
 - `latest.zip` and `best_model.zip` (best by validation eval)
-- `train_state.json`: `{stage, steps_total, steps_stage, best_score, run_id}`
+- `train_state.json`: `{stage, steps_total, steps_stage, best_score, run_id}` (plus bookkeeping: `reward_normalizer`, `credit`, ...)
 - `tb/`: TensorBoard logs, with scalars for reward, twin advantage, per-action rates, mask validity and the validation metrics
 
 `--resume auto` loads `latest.zip` and `train_state.json` if present and continues with `reset_num_timesteps=False`, so a Colab disconnect loses at most 250k steps.
@@ -603,7 +634,9 @@ The RL owner may recalibrate these values. Any change is made only in `constants
 
 ### 4.8 Acceptance bar for shipping a model
 
-The AI must beat Normal on mean total cost across the 50 eval seeds, with a seed win rate ≥ 70 %. It must also reduce **tunnel-stuck train-minutes** by ≥ 30 % and **avg wait** by ≥ 10 %. Otherwise iterate: rewards, masks, features, or train longer.
+The AI must beat Normal on mean total cost across the 50 eval seeds, with a seed win rate ≥ 70 %. It must also reduce **tunnel-stuck train-minutes** by ≥ 30 %, and it must **remove ≥ 20 % of the disruption-induced excess avg wait**. The excess is measured as Normal minus a calm counterfactual, i.e. the same scenario without its disruptions under Normal Schedule. It is a ratio of sums over the seeds, reported with a 95 % seed-bootstrap CI. The 20 % threshold was confirmed with the user on 2026-11-22. It equals what a rule-based incident dispatcher removes on the same 50 seeds: 20 %, CI 12–28 %. That dispatcher is an evaluation-only benchmark, never shipped. The best RL model removes 25 %. Otherwise iterate: rewards, masks, features, or train longer.
+
+*Changed with the user on 2026-11-22.* This replaces "avg wait by ≥ 10 %". Disruptions add only ~21 % to citywide avg wait on the eval seeds (4.92 vs 3.90 min), and less than 10 % on 20 of the 50 seeds, so a citywide 10 % cut was unreachable there for any dispatcher. The citywide % change is still reported for information.
 
 ### 4.9 ONNX export — CONTRACT (`rl/export_onnx.py`)
 

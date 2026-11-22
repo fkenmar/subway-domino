@@ -86,3 +86,28 @@ def tick_costs(
         ],
         dtype=np.float64,
     )
+
+
+def tick_cost_vectors(
+    waiting: np.ndarray,
+    capacity: np.ndarray,
+    onboard: np.ndarray,
+    tunnel_stopped: np.ndarray,
+    held: np.ndarray,
+    dt_s: float = C.DT_S,
+    tunnel_stopped_min: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Where the flow terms of :func:`tick_costs` arise: ``(platform, train)`` float64 vectors.
+
+    ``platform[p]`` is the wait + crowd cost of platform p, ``train[t]`` the tunnel + hold cost
+    of train t, for the same tick and arguments. Their sums equal ``wait + crowd`` and
+    ``tunnel + hold`` of :func:`tick_costs` up to float rounding. Training credit assignment
+    uses them (``rl.credit``); the scalar path above is separate and unchanged.
+    """
+    dtm = dt_s / 60.0
+    ob_t = onboard if tunnel_stopped_min is None else onboard * trapped_age_weight(tunnel_stopped_min)
+    ex = np.maximum(0.0, waiting.sum(axis=1) / capacity - C.CROWD_THRESHOLD) / C.CROWD_SPAN
+    platform = (C.W_WAIT * dtm) * (waiting @ AGE_WEIGHTS) + (C.W_CROWD * dtm) * (ex * ex)
+    train = ((C.W_TUNNEL_TRAIN + C.W_TUNNEL_RIDER * ob_t) * tunnel_stopped
+             + (C.W_HOLD_TRAIN + C.W_HOLD_RIDER * onboard) * held) * dtm
+    return platform, train

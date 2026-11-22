@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import dataclasses
 import json
 import math
 import multiprocessing as mp
@@ -54,7 +55,11 @@ BOOTSTRAP_RESAMPLES: int = 10_000
 #: §4.8 acceptance bar
 SHIP_WIN_RATE: float = 0.70
 SHIP_STUCK_REDUCTION: float = 0.30
-SHIP_WAIT_REDUCTION: float = 0.10
+SHIP_WAIT_REDUCTION: float = 0.10  # superseded (2026-11-22): reported for information only, not part of the bar
+#: Share of the disruption-induced excess avg wait (Normal vs the same scenario without disruptions)
+#: the AI must remove, as a ratio of sums over the seeds. Confirmed with the user 2026-11-22: 20 % =
+#: what a rule-based incident dispatcher achieves on the same seeds (evaluation-only benchmark).
+SHIP_EXCESS_WAIT_RECOVERY: float = 0.20
 
 
 # --------------------------------------------------------------------------------------
@@ -101,8 +106,11 @@ def evaluate_seed(graph: Graph, seed: int, act: ActFn) -> dict[str, Any]:
     t0 = time.perf_counter()
     normal = run_episode(graph, sc, None)
     ai = run_episode(graph, sc, act)
+    # counterfactual calm day: the same scenario without its disruptions, under Normal Schedule
+    calm = normal if not sc.disruptions else run_episode(graph, dataclasses.replace(sc, disruptions=()), None)
     return {"seed": int(seed), "profile": sc.profile, "n_disruptions": len(sc.disruptions),
-            "demand_scale": sc.demand_scale, "normal": normal, "ai": ai, "seconds": time.perf_counter() - t0}
+            "demand_scale": sc.demand_scale, "normal": normal, "ai": ai,
+            "calm": {"avg_wait_min": calm["avg_wait_min"]}, "seconds": time.perf_counter() - t0}
 
 
 # --------------------------------------------------------------------------------------
@@ -119,6 +127,30 @@ def bootstrap_ci(x: Sequence[float], resamples: int = BOOTSTRAP_RESAMPLES, seed:
     means = a[rng.integers(0, a.size, size=(resamples, a.size))].mean(axis=1)
     lo, hi = np.percentile(means, [2.5, 97.5])
     return (float(lo), float(hi))
+
+
+def excess_wait_recovery(rows: list[dict[str, Any]], resamples: int = BOOTSTRAP_RESAMPLES,
+                         seed: int = 0) -> dict[str, Any]:
+    """Share of the disruption-induced excess avg wait the AI removes: sum(normal - ai) / sum(normal - calm).
+
+    Ratio of sums over seeds (seeds whose disruptions barely move citywide wait carry little weight), with
+    a 95 % seed-bootstrap CI. Rows without a ``calm`` entry (older reports) give NaN."""
+    if not rows or any("calm" not in r for r in rows):
+        nan = float("nan")
+        return {"calm_mean": nan, "excess_mean": nan, "recovery": nan, "recovery_ci95": (nan, nan)}
+    n = np.array([r["normal"]["avg_wait_min"] for r in rows], dtype=np.float64)
+    a = np.array([r["ai"]["avg_wait_min"] for r in rows], dtype=np.float64)
+    c = np.array([r["calm"]["avg_wait_min"] for r in rows], dtype=np.float64)
+    exc = np.maximum(n - c, 0.0)
+    rec = n - a
+    ratio = float(rec.sum() / exc.sum()) if exc.sum() > 0 else float("nan")
+    rng = np.random.default_rng(seed)
+    idx = rng.integers(0, len(rows), size=(resamples, len(rows)))
+    den = exc[idx].sum(axis=1)
+    ok = den > 0
+    boots = rec[idx].sum(axis=1)[ok] / den[ok]
+    ci = (float(np.percentile(boots, 2.5)), float(np.percentile(boots, 97.5))) if boots.size else (float("nan"),) * 2
+    return {"calm_mean": float(c.mean()), "excess_mean": float(exc.mean()), "recovery": ratio, "recovery_ci95": ci}
 
 
 def _pct_change(ai: float, normal: float) -> float:
@@ -159,6 +191,8 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
     stuck_red = -metrics["tunnel_stuck_train_min"]["pct_change"] / 100.0
     wait_red = -metrics["avg_wait_min"]["pct_change"] / 100.0
     win_rate = float(np.mean(wins)) if wins else 0.0
+    exw = excess_wait_recovery(rows)
+    rec_ok = bool(math.isfinite(exw["recovery"]) and exw["recovery"] >= SHIP_EXCESS_WAIT_RECOVERY)
     return {
         "n_seeds": len(rows),
         "metrics": metrics,
@@ -170,10 +204,13 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "cost_better": cost_better,
             "win_rate_ok": win_rate >= SHIP_WIN_RATE,
             "stuck_reduction": stuck_red, "stuck_ok": stuck_red >= SHIP_STUCK_REDUCTION,
-            "wait_reduction": wait_red, "wait_ok": wait_red >= SHIP_WAIT_REDUCTION,
+            "wait_reduction": wait_red,  # informational since 2026-11-22
+            "excess_wait_recovery": exw["recovery"], "excess_wait_recovery_ci95": exw["recovery_ci95"],
+            "excess_wait_recovery_target": SHIP_EXCESS_WAIT_RECOVERY, "wait_ok": rec_ok,
             "pass": bool(cost_better and win_rate >= SHIP_WIN_RATE and stuck_red >= SHIP_STUCK_REDUCTION
-                         and wait_red >= SHIP_WAIT_REDUCTION),
+                         and rec_ok),
         },
+        "excess_wait": exw,
         "mean_actions_per_episode": actions,
     }
 
@@ -190,7 +227,7 @@ def write_reports(out_dir: Path, report: dict[str, Any]) -> dict[str, Path]:
     fields = ["seed", "profile", "n_disruptions", "demand_scale"]
     for mode in ("normal", "ai"):
         fields += [f"{mode}_{k}" for k in UI_METRICS] + [f"{mode}_cost_{k}" for k in C.COST_KEYS]
-    fields += [f"ai_n_{n}" for n in C.ACTION_NAMES[1:]] + ["ai_decisions", "ai_wins"]
+    fields += [f"ai_n_{n}" for n in C.ACTION_NAMES[1:]] + ["ai_decisions", "ai_wins", "calm_avg_wait_min"]
     tmp = paths["csv"].with_suffix(".csv.tmp")
     with tmp.open("w", newline="") as fh:
         w = csv.writer(fh)
@@ -201,6 +238,7 @@ def write_reports(out_dir: Path, report: dict[str, Any]) -> dict[str, Path]:
                 line += [round(r[mode][k], 6) for k in UI_METRICS] + [round(r[mode]["cost"][k], 3) for k in C.COST_KEYS]
             line += [r["ai"]["actions"].get(n, 0) for n in C.ACTION_NAMES[1:]]
             line += [r["ai"]["decisions"], int(r["ai"]["cost"]["total"] < r["normal"]["cost"]["total"])]
+            line += [round(r["calm"]["avg_wait_min"], 6) if "calm" in r else ""]
             w.writerow(line)
     os.replace(tmp, paths["csv"])
     return paths
@@ -219,6 +257,16 @@ def _fmt(x: float) -> str:
     return f"{x:,.0f}" if ax >= 1000 else (f"{x:.1f}" if ax >= 10 else f"{x:.3f}")
 
 
+def _excess_line(s: dict[str, Any]) -> str:
+    e = s.get("excess_wait")
+    if not e or not math.isfinite(e.get("recovery", float("nan"))):
+        return "- Disruption excess wait: n/a (no calm counterfactual in this report)"
+    lo, hi = e["recovery_ci95"]
+    return (f"- Disruption excess wait: Normal {s['metrics']['avg_wait_min']['normal_mean']:.3f} min vs calm "
+            f"{e['calm_mean']:.3f} min (+{e['excess_mean']:.3f} min). The AI removes **{100 * e['recovery']:.0f} %** "
+            f"of it (95 % CI {100 * lo:.0f}..{100 * hi:.0f} %); §4.8 needs >= {100 * SHIP_EXCESS_WAIT_RECOVERY:.0f} %")
+
+
 def render_markdown(report: dict[str, Any]) -> str:
     s = report["summary"]
     lines = [
@@ -231,6 +279,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"reduction {100 * s['mean_rel_cost_reduction']:.1f} %",
         f"- `--require-win` gate (cost and >= 3/4 UI metrics): **{'PASS' if s['require_win_pass'] else 'FAIL'}**; "
         f"§4.8 acceptance bar: **{'PASS' if s['acceptance_bar']['pass'] else 'FAIL'}**",
+        _excess_line(s),
         "",
         "| Metric | Normal (95 % CI) | AI (95 % CI) | Change | AI better |",
         "|---|---|---|---|---|",

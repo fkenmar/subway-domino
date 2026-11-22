@@ -10,7 +10,12 @@
   ``--n-steps auto`` keeps the rollout near 15,360 steps;
   learner threads = clamp(cpus // 8, 1, 8).
 * Curriculum: ``--stage auto`` trains Stage 1 (trunk school) for ``--stage1-steps``, then
-  Stage 2 (citywide, domain randomization).
+  Stage 2 (citywide, domain randomization; ``--calm-frac`` of its episodes are calm anchors
+  without disruptions).
+* Credit assignment (WP5b): ``--credit per-train`` (default) makes every train its own
+  semi-MDP with route-scoped rewards discounted per sim-minute (``--gamma-min``), see
+  :mod:`rl.credit`; ``--credit serial`` is the WP5 baseline (one GAE chain per worker,
+  gamma per decision, citywide reward), bit-identical to it, kept as an ablation.
 * Durability: atomic checkpoints every 250k steps (the last 5 kept), ``latest.zip``,
   ``best_model.zip`` (validated every 500k steps on 8 fixed seeds) and ``train_state.json``.
   ``--resume auto`` continues from ``latest.zip``, so re-running the same command after a
@@ -48,7 +53,8 @@ from rl.callbacks import (
     ValidationCallback,
     stage_for,
 )
-from rl.ppo import ChunkedMaskablePPO
+from rl.credit import GAMMA_MIN, NEIGHBOR_W
+from rl.ppo import CREDIT_MODES, ChunkedMaskablePPO
 from rl.rollout import RolloutWorkers
 from rl.vec import EnvFactory, cpu_count, resolve_batch_size, resolve_n_envs, resolve_n_steps, resolve_torch_threads
 from sim import constants as C
@@ -66,11 +72,16 @@ HYPERPARAMS: dict[str, Any] = {
     "learning_rate_start": 3e-4,
     "learning_rate_end": 5e-5,
     "ent_coef_start": 0.01,
-    "ent_coef_end": 0.001,
+    "ent_coef_end": 0.001,  # WP5c tried 0.003 with the hold-cost change; reverted with it
     "batch_size_target": 2048,
 }
 STAGE1_STEPS: int = 3_000_000
 STAGE2_STEPS: int = 10_000_000
+#: per-credit-mode defaults of --target-kl and --calm-frac (serial = the WP5 baseline)
+CREDIT_DEFAULTS: dict[str, dict[str, Any]] = {
+    "per-train": {"target_kl": 0.02, "calm_frac": 0.12},
+    "serial": {"target_kl": None, "calm_frac": 0.0},
+}
 
 
 def build_policy(seed: int | None = None) -> MaskableActorCriticPolicy:
@@ -106,13 +117,47 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--torch-threads", default="auto", help="learner threads: int or 'auto' (clamp(cpus//8, 1, 8))")
     ap.add_argument("--chunk", type=int, default=64, help="steps per worker chunk")
     ap.add_argument("--no-reward-norm", action="store_true", help="disable return-based reward normalization")
+    ap.add_argument("--credit", choices=CREDIT_MODES, default="per-train",
+                    help="per-train: per-train semi-MDP GAE (rl.credit); serial: the WP5 baseline (ablation)")
+    ap.add_argument("--gamma-min", type=float, default=GAMMA_MIN,
+                    help="per-train: discount per sim-minute (0.96 = 17-min half-life)")
+    ap.add_argument("--reward-scope", choices=("route", "global"), default="route",
+                    help="per-train: route-scoped flow deltas (default) or the citywide delta (ablation)")
+    ap.add_argument("--scope-neighbor-weight", type=float, default=NEIGHBOR_W,
+                    help="per-train: weight of platforms/trains of track-sharing routes in the route scope")
+    ap.add_argument("--target-kl", type=float, default=None,
+                    help="PPO early-stop KL (default 0.02 per-train, none serial; <= 0 disables)")
+    ap.add_argument("--calm-frac", type=float, default=None,
+                    help="Stage 2 share of calm anchor episodes without disruptions (default 0.12 per-train, 0 serial)")
     ap.add_argument("--graph", default=None, help="network.json (default: data/network.json)")
     ap.add_argument("--start-method", default="spawn", choices=("spawn", "forkserver", "fork"))
     ap.add_argument("--device", default="cpu", help="torch device for the learner (cpu is fastest for this MLP)")
     return ap.parse_args(argv)
 
 
-def _new_model(args: argparse.Namespace, workers: RolloutWorkers, n_steps: int, batch: int) -> ChunkedMaskablePPO:
+def credit_settings(args: argparse.Namespace) -> dict[str, Any]:
+    """The resolved WP5b credit settings (also stored in ``train_state.json``)."""
+    d = CREDIT_DEFAULTS[args.credit]
+    tkl = d["target_kl"] if args.target_kl is None else (float(args.target_kl) if args.target_kl > 0 else None)
+    calm = d["calm_frac"] if args.calm_frac is None else float(args.calm_frac)
+    if not 0.0 <= calm <= 1.0:
+        raise SystemExit(f"--calm-frac must be in [0, 1], got {calm}")
+    out: dict[str, Any] = {"mode": args.credit, "target_kl": tkl, "calm_frac": calm}
+    if args.credit == "per-train":
+        out.update(gamma_min=float(args.gamma_min), gae_lambda=HYPERPARAMS["gae_lambda"],
+                   reward_scope=args.reward_scope, scope_neighbor_weight=float(args.scope_neighbor_weight))
+    return out
+
+
+def _model_credit_kwargs(cs: dict[str, Any], batch_target: int) -> dict[str, Any]:
+    kw: dict[str, Any] = {"credit": cs["mode"], "target_kl": cs["target_kl"]}
+    if cs["mode"] == "per-train":
+        kw.update(gamma_min=cs["gamma_min"], reward_scope=cs["reward_scope"], batch_target=batch_target)
+    return kw
+
+
+def _new_model(args: argparse.Namespace, workers: RolloutWorkers, n_steps: int, batch: int,
+               credit_kw: dict[str, Any] | None = None) -> ChunkedMaskablePPO:
     hp = HYPERPARAMS
     return ChunkedMaskablePPO(
         "MlpPolicy",
@@ -132,6 +177,7 @@ def _new_model(args: argparse.Namespace, workers: RolloutWorkers, n_steps: int, 
         verbose=0,
         rollout_chunk=args.chunk,
         normalize_reward=not args.no_reward_norm,
+        **(credit_kw or {}),
     )
 
 
@@ -163,6 +209,10 @@ def main(argv: list[str] | None = None) -> int:
     state.stage_mode, state.stage1_steps = args.stage, int(args.stage1_steps)
     state.n_envs, state.n_steps, state.batch_size = n_envs, n_steps, batch
     state.graph_version, state.constants_hash = graph.graph_version, C.constants_hash()
+    cs = credit_settings(args)
+    state.credit = cs
+    batch_target = HYPERPARAMS["batch_size_target"] if str(args.batch_size) == "auto" else int(args.batch_size)
+    credit_kw = _model_credit_kwargs(cs, batch_target)
     if state.steps_total >= args.total_steps:
         print(f"[rl.train] {run_dir} already reached {state.steps_total:,} >= {args.total_steps:,} steps; nothing to do")
         return 0
@@ -172,20 +222,30 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"[rl.train] run {state.run_id} in {run_dir} | {'resume' if resume else 'new'} at {state.steps_total:,} "
           f"steps | stage {stage} ({args.stage}) | cpus {cpus}: {n_envs} workers x {n_steps} steps "
-          f"(rollout {n_envs * n_steps:,}, batch {batch}), torch threads {threads} | Python "
+          f"(rollout {n_envs * n_steps:,}, batch {batch if cs['mode'] == 'serial' else 'per rollout'}), torch threads "
+          f"{threads} | credit {json.dumps(cs)} | Python "
           f"{platform.python_version()} torch {torch.__version__} | graph {graph.graph_version}", flush=True)
 
     stop = GracefulStop()
-    workers = RolloutWorkers(n_envs, EnvFactory(stage=stage, graph_path=args.graph, monitor=False),
-                             seed=args.seed + 7919 * state.resumes + state.steps_total, start_method=args.start_method)
+    per_train = cs["mode"] == "per-train"
+    factory = EnvFactory(stage=stage, graph_path=args.graph, monitor=False, credit_info=per_train,
+                         scope_neighbor_weight=float(args.scope_neighbor_weight), calm_frac=cs["calm_frac"])
+    workers = RolloutWorkers(n_envs, factory, seed=args.seed + 7919 * state.resumes + state.steps_total,
+                             start_method=args.start_method)
     try:
         if resume:
+            # open per-train transitions are not checkpointed: the carry set starts empty
             model = ChunkedMaskablePPO.load(str(latest), env=workers, device=args.device, n_steps=n_steps,
-                                            batch_size=batch, rollout_chunk=args.chunk, verbose=0)
-            if model.reward_normalizer is not None and state.reward_normalizer:
-                model.reward_normalizer.load_state_dict(state.reward_normalizer)
+                                            batch_size=batch, rollout_chunk=args.chunk, verbose=0, **credit_kw)
+            saved = state.reward_normalizer
+            if model.reward_normalizer is not None and saved:
+                if saved.get("kind", "serial") == model.reward_normalizer.kind:
+                    model.reward_normalizer.load_state_dict(saved)
+                else:
+                    print(f"[rl.train] reward normalizer was {saved.get('kind', 'serial')!r}, now "
+                          f"{model.reward_normalizer.kind!r}: starting a fresh one", flush=True)
         else:
-            model = _new_model(args, workers, n_steps, batch)
+            model = _new_model(args, workers, n_steps, batch, credit_kw)
         model.set_logger(configure(str(run_dir / "tb"), ["tensorboard"]))
         model.should_stop = stop.is_set
         callbacks = CallbackList([

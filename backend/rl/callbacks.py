@@ -95,8 +95,9 @@ class TrainState:
     created_utc: str = field(default_factory=utc_now)
     updated_utc: str = field(default_factory=utc_now)
     finished: bool = False
-    reward_normalizer: dict[str, float] | None = None
+    reward_normalizer: dict[str, Any] | None = None  # ReturnNormalizer, or kind "per_train" (rl.credit)
     last_validation: dict[str, Any] | None = None
+    credit: dict[str, Any] | None = None  # resolved WP5b credit settings (rl.train.credit_settings)
 
     @classmethod
     def load(cls, path: Path) -> "TrainState":

@@ -158,7 +158,18 @@ def _hyperparameters(model: MaskablePPO) -> dict[str, Any]:
         "ent_coef": f"linear {HYPERPARAMS['ent_coef_start']} -> {HYPERPARAMS['ent_coef_end']}",
         "reward_normalization": bool(getattr(model, "normalize_reward", False)),
         "episode_horizon": "terminal (no bootstrap; time_in_episode_frac is observed)",
+        **_credit_card(model),
     }
+
+
+def _credit_card(model: MaskablePPO) -> dict[str, Any]:
+    """Credit-assignment settings (WP5b); checkpoints from before WP5b are serial."""
+    credit = str(getattr(model, "credit", "serial"))
+    out: dict[str, Any] = {"credit": credit, "target_kl": getattr(model, "target_kl", None)}
+    if credit == "per-train":
+        out.update(gamma_min_per_sim_minute=float(getattr(model, "gamma_min", float("nan"))),
+                   reward_scope=str(getattr(model, "reward_scope", "route")))
+    return out
 
 
 def _read_json(path: Path | None) -> dict[str, Any] | None:

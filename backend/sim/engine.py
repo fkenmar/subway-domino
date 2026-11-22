@@ -38,7 +38,7 @@ import numpy as np
 
 from sim import constants as C
 from sim import disruptions as D
-from sim.cost import I_TOTAL, tick_costs
+from sim.cost import I_TOTAL, tick_cost_vectors, tick_costs
 from sim.graph import KIND_RUN, KIND_TURNBACK, TRACK_L, TRACK_X, Graph, ServiceView, shift_buckets
 from sim.kinematics import fixed_block_authority, motion_profile
 from sim.paths import CompiledPath, compile_path, path_capacity_dims, template_path
@@ -261,6 +261,18 @@ def _static(g: Graph) -> _Static:
     return s
 
 
+def route_platform_incidence(g: Graph) -> np.ndarray:
+    """``float32[n_routes, n_platforms]``: 1 where a pattern of the route serves the platform.
+
+    The same matrix the route-level wait features use (read-only, cached per graph); training
+    credit assignment (``rl.credit``) scopes rewards with it.
+    """
+    inc = _static(g).route_pl
+    out = inc.view()
+    out.flags.writeable = False
+    return out
+
+
 class _Prof:
     """Profile (and route subset) tables derived from a :class:`ServiceView`."""
 
@@ -408,6 +420,8 @@ _TRANSIENT_ATTRS = frozenset(
 )
 # per-session identity counters (not physics); excluded from state_hash()
 _SESSION_ATTRS = frozenset({"_next_dis_id"})
+# opt-in training accounting (per-platform / per-route cost vectors); excluded from state_hash()
+_ACCOUNTING_ATTRS = frozenset({"track_cost_vectors", "cost_plat", "cost_route_train"})
 # derived every tick from the primary state; excluded from state_hash()
 _DERIVED_ATTRS = frozenset(
     {"_rear_min", "_rear_id", "_front_max", "_front_id", "_lead_rear", "_lead_id", "_foll_front", "_foll_id",
@@ -427,6 +441,8 @@ class NYCSubwaySim:
         self._PC, self._VC, self._SC = path_capacity_dims(graph)
         self._ark = np.arange(_K_LOOK, dtype=np.intp)[None, :]
         self._next_dis_id = 1
+        #: accumulate cost_vectors() in every tick (training credit only; the server leaves it off)
+        self.track_cost_vectors = False
         self.reset(scenario, warmup=warmup)
 
     def _alloc(self) -> None:
@@ -526,6 +542,8 @@ class NYCSubwaySim:
         self.yard_cool = np.full(g.n_yards, -INF)
         # accounting
         self.cost = np.zeros(len(C.COST_KEYS), dtype=np.float64)
+        self.cost_plat = np.zeros(g.n_platforms, dtype=np.float64)  # wait + crowd per platform
+        self.cost_route_train = np.zeros(g.n_routes, dtype=np.float64)  # tunnel + hold per train route
         self.counts = np.zeros(C.N_ACTIONS, dtype=np.int64)
 
     # ------------------------------------------------------------------ reset
@@ -581,6 +599,8 @@ class NYCSubwaySim:
             for _ in range(int(round(C.WARMUP_S / DT))):
                 self._tick()
             self.cost[:] = 0.0
+            self.cost_plat[:] = 0.0
+            self.cost_route_train[:] = 0.0
             self.counts[:] = 0
             self.riders_served = 0.0
             self.riders_displaced = 0.0
@@ -950,6 +970,17 @@ class NYCSubwaySim:
     def cost_totals(self) -> dict[str, float]:
         return {k: float(v) for k, v in zip(C.COST_KEYS, self.cost.tolist())}
 
+    def cost_vectors(self) -> dict[str, np.ndarray]:
+        """Where the cumulative flow costs since reset arose (copies; training credit assignment).
+
+        ``platform``: float64[n_platforms] wait + crowd; ``route_train``: float64[n_routes]
+        tunnel + hold of each route's trains. They accumulate only while
+        ``track_cost_vectors`` is set, in the same tick code as ``cost_totals()``; then
+        ``platform.sum() == wait + crowd`` and ``route_train.sum() == tunnel + hold`` up to
+        float rounding. Immediate action costs are not included (they belong to the actor).
+        """
+        return {"platform": self.cost_plat.copy(), "route_train": self.cost_route_train.copy()}
+
     def action_counts(self) -> dict[str, int]:
         return {name: int(self.counts[i + 1]) for i, name in enumerate(_NON_CONTINUE)}
 
@@ -984,7 +1015,7 @@ class NYCSubwaySim:
         h = hashlib.sha1()
         for k in sorted(self.__dict__):
             if (k in _SHARED_ATTRS or k in _TRANSIENT_ATTRS or k in _DERIVED_ATTRS or k in _SESSION_ATTRS
-                    or k.startswith("_pend")):
+                    or k in _ACCOUNTING_ATTRS or k.startswith("_pend")):
                 continue
             v = self.__dict__[k]
             h.update(k.encode())
@@ -1707,9 +1738,21 @@ class NYCSubwaySim:
         self.tr_tunnel = stopped
         held = act & ((self.tr_held & (self.tr_mode == M_DWELL)) | self.tr_in_closed)
         trapped_min = np.where(stopped, (self._t0 + DT - self.tr_stopped_since) / 60.0, 0.0)
-        terms = tick_costs(self.waiting, self._S.pl_cap, self.tr_onboard.sum(axis=1), stopped, held, DT, trapped_min)
+        onboard = self.tr_onboard.sum(axis=1)
+        terms = tick_costs(self.waiting, self._S.pl_cap, onboard, stopped, held, DT, trapped_min)
         self.cost[: terms.size] += terms
         self.cost[I_TOTAL] += float(terms.sum())
+        if self.track_cost_vectors:
+            plat, per_train = tick_cost_vectors(self.waiting, self._S.pl_cap, onboard, stopped, held, DT, trapped_min)
+            self.cost_plat += plat
+            t = np.flatnonzero(per_train)
+            r = self.tr_route[t]
+            if t.size and bool((r >= 0).all()):
+                self.cost_route_train += np.bincount(r, weights=per_train[t], minlength=self.cost_route_train.size)
+            elif t.size:  # pragma: no cover - an active train always has a route
+                ok = r >= 0
+                self.cost_route_train += np.bincount(r[ok], weights=per_train[t][ok],
+                                                     minlength=self.cost_route_train.size)
 
     def _compute_at_pl(self) -> np.ndarray:
         """Refresh ``tr_at_pl`` (front at a platform node, or crossing at a station); returns edges."""

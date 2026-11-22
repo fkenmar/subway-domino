@@ -24,6 +24,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnv, VecEnvWrapper
 from stable_baselines3.common.vec_env.base_vec_env import VecEnvIndices, VecEnvStepReturn
 
+from rl.credit import NEIGHBOR_W
 from rl.env import SubwayDominoEnv, TwinMode
 from sim import constants as C
 
@@ -111,13 +112,17 @@ class EnvFactory:
     graph_path: str | None = None
     twin_mode: TwinMode = "lazy"
     monitor: bool = True
+    credit_info: bool = True  # per-step credit data in info (rl.credit); rl.train --credit serial turns it off
+    scope_neighbor_weight: float = NEIGHBOR_W
+    calm_frac: float = 0.0  # Stage 2 calm anchor episodes (no disruptions)
 
     def __call__(self) -> gym.Env:
         if mp.parent_process() is not None:
             # Workers ignore Ctrl+C: the trainer catches it, checkpoints, then closes them.
             signal.signal(signal.SIGINT, signal.SIG_IGN)
         env: gym.Env = SubwayDominoEnv(
-            stage=self.stage, seed=self.seed, graph_path=self.graph_path, twin_mode=self.twin_mode
+            stage=self.stage, seed=self.seed, graph_path=self.graph_path, twin_mode=self.twin_mode,
+            credit_info=self.credit_info, scope_neighbor_weight=self.scope_neighbor_weight, calm_frac=self.calm_frac,
         )
         if self.monitor:
             env = Monitor(env, info_keywords=())
