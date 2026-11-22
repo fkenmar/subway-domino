@@ -1,0 +1,208 @@
+{
+  "name": "nyc_subway_rcc_ppo",
+  "description": "Subway Domino RCC dispatcher: masked actor logits over 8 dispatch actions per decision.",
+  "created_utc": "2026-11-22T15:03:20Z",
+  "checkpoint": "runs/pertrain_global/best_model.zip",
+  "trained_steps": 11007360,
+  "graph_version": "e184af352bc6",
+  "constants_hash": "610034af56bddaa1ec39a069d653170ed110c20c",
+  "mask_revision": 2,
+  "io": {
+    "input": {
+      "name": "obs",
+      "dtype": "float32",
+      "shape": [
+        "batch",
+        216
+      ]
+    },
+    "output": {
+      "name": "logits",
+      "dtype": "float32",
+      "shape": [
+        "batch",
+        8
+      ]
+    },
+    "opset": 18,
+    "exporter": "dynamo",
+    "decision_rule": "argmax over valid actions (masks)"
+  },
+  "action_names": [
+    "CONTINUE_SCHEDULED",
+    "HOLD_IN_STATION",
+    "RUN_EXPRESS",
+    "RUN_LOCAL",
+    "SKIP_STOP",
+    "SHORT_TURN_RELAY",
+    "REROUTE_VIA_COMPATIBLE_TRUNK",
+    "DISPATCH_YARD_GAP_TRAIN"
+  ],
+  "hyperparameters": {
+    "algorithm": "MaskablePPO (sb3-contrib), chunked worker-side-inference rollouts (rl.ppo)",
+    "policy": "MlpPolicy",
+    "net_arch": {
+      "pi": [
+        256,
+        256
+      ],
+      "vf": [
+        256,
+        256
+      ]
+    },
+    "activation_fn": "Tanh",
+    "n_steps_per_worker": 1152,
+    "n_workers": 13,
+    "batch_size": 1977,
+    "n_epochs": 5,
+    "gamma": 0.995,
+    "gae_lambda": 0.95,
+    "clip_range": 0.2,
+    "max_grad_norm": 0.5,
+    "learning_rate": "linear 0.0003 -> 5e-05",
+    "ent_coef": "linear 0.01 -> 0.001",
+    "reward_normalization": true,
+    "episode_horizon": "terminal (no bootstrap; time_in_episode_frac is observed)",
+    "credit": "per-train",
+    "target_kl": 0.02,
+    "gamma_min_per_sim_minute": 0.96,
+    "reward_scope": "global"
+  },
+  "curriculum": {
+    "stage1": "one trunk group, 1-2 disruptions, headway jitter, 3600 s episodes",
+    "stage2": "citywide, 1-4 disruptions, domain randomization, 5400 s episodes"
+  },
+  "reward": {
+    "formula": "clip(-REWARD_SCALE * (dC_ai - dC_twin), +-REWARD_CLIP), twin = Normal Schedule",
+    "coefficients": {
+      "W_WAIT": 1.0,
+      "WAIT_AGE_EXPONENT": 1.5,
+      "W_TUNNEL_TRAIN": 200.0,
+      "W_TUNNEL_RIDER": 1.0,
+      "TUNNEL_RIDER_AGE_EXPONENT": 1.5,
+      "W_HOLD_TRAIN": 10.0,
+      "W_HOLD_RIDER": 0.05,
+      "W_CROWD": 500.0,
+      "CROWD_THRESHOLD": 0.8,
+      "CROWD_SPAN": 0.2,
+      "W_ST": 10.0,
+      "W_SKIP": 5.0,
+      "W_REROUTE": 300.0,
+      "W_REROUTE_RIDER": 2.0,
+      "W_YARD": 400.0,
+      "REWARD_SCALE": 0.0005,
+      "REWARD_CLIP": 100.0
+    }
+  },
+  "parity": {
+    "n_obs": 1000,
+    "max_abs_logit_diff": 2.86102294921875e-06,
+    "argmax_agreement": 1.0,
+    "atol": 0.0001,
+    "batch_dynamic_ok": true,
+    "passed": true,
+    "metadata_warnings": []
+  },
+  "training_run": {
+    "run_id": "b54483c54b11",
+    "stage": 2,
+    "steps_total": 13014144,
+    "steps_stage": 10003968,
+    "best_score": 0.20104388331794704,
+    "best_step": 11007360,
+    "stage1_steps": 3000000,
+    "total_steps_target": 13000000,
+    "n_envs": 13,
+    "n_steps": 1152,
+    "batch_size": 1872,
+    "resumes": 0,
+    "created_utc": "2026-11-22T14:31:20Z",
+    "updated_utc": "2026-11-22T15:03:08Z",
+    "last_validation": {
+      "step": 13014144,
+      "score": 0.19784970835017862,
+      "win_rate": 1.0,
+      "per_seed": [
+        0.06388,
+        0.39971,
+        0.3412,
+        0.04384,
+        0.05711,
+        0.23925,
+        0.43189,
+        0.00592
+      ],
+      "stuck_reduction": 0.3964683509915785,
+      "wait_reduction": 0.05640502862192476,
+      "overcrowd_reduction": 0.22920517560073939,
+      "riders_served_gain": -0.0002839306858852808,
+      "actions_per_episode": 1242.625,
+      "seconds": 1.1603540000505745,
+      "best": false
+    }
+  },
+  "evaluation": {
+    "n_seeds": 50,
+    "seed_base": 1000000,
+    "policy": "models/nyc_subway_rcc_ppo.onnx",
+    "created_utc": "2026-11-22T20:31:40Z",
+    "seed_win_rate": 0.86,
+    "mean_rel_cost_reduction": 0.13974727984753663,
+    "require_win_pass": true,
+    "acceptance_bar": {
+      "cost_better": true,
+      "win_rate_ok": true,
+      "stuck_reduction": 0.27370547190598615,
+      "stuck_ok": false,
+      "wait_reduction": 0.05099334455576047,
+      "excess_wait_recovery": 0.24412353116783944,
+      "excess_wait_recovery_ci95": [
+        0.09412047748295581,
+        0.3873314147278454
+      ],
+      "excess_wait_recovery_target": 0.2,
+      "wait_ok": true,
+      "pass": false
+    },
+    "metrics": {
+      "avg_wait_min": {
+        "normal_mean": 4.92354432288552,
+        "ai_mean": 4.67247633079306,
+        "pct_change": -5.099334455576047,
+        "ai_better": true
+      },
+      "overcrowded_platform_min": {
+        "normal_mean": 21.85,
+        "ai_mean": 19.78,
+        "pct_change": -9.473684210526317,
+        "ai_better": true
+      },
+      "tunnel_stuck_train_min": {
+        "normal_mean": 453.83333333333326,
+        "ai_mean": 329.61666666666656,
+        "pct_change": -27.370547190598614,
+        "ai_better": true
+      },
+      "riders_served": {
+        "normal_mean": 356448.4514245575,
+        "ai_mean": 356879.54673972464,
+        "pct_change": 0.12094183982123376,
+        "ai_better": true
+      },
+      "total_cost": {
+        "normal_mean": 18260042.42402086,
+        "ai_mean": 14043239.11300564,
+        "pct_change": -23.093064151198618,
+        "ai_better": true
+      }
+    },
+    "report": "models/eval_report.json"
+  },
+  "ship_decision": {
+    "date": "2026-11-22",
+    "decided_by": "product owner",
+    "acceptance_bar_pass": false,
+    "note": "Shipped by product-owner decision although the ARCHITECTURE \u00a74.8 bar is not fully met. On the 50 eval seeds it passes cost (-23.1 %), seed win rate (86 % >= 70 %) and excess-wait removal (24 % >= 20 %), but tunnel-stuck train-minutes fall 27.4 % against the 30 % target. It was the best of six training configurations, and it beats an evaluation-only rule-based dispatcher on cost, wait and crowding (not on tunnel jams)."
+  }
+}

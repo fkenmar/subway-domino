@@ -1,0 +1,3462 @@
+{
+  "policy": "models/nyc_subway_rcc_ppo.onnx",
+  "policy_metadata": {
+    "obs_dim": "216",
+    "n_actions": "8",
+    "action_names": "[\"CONTINUE_SCHEDULED\", \"HOLD_IN_STATION\", \"RUN_EXPRESS\", \"RUN_LOCAL\", \"SKIP_STOP\", \"SHORT_TURN_RELAY\", \"REROUTE_VIA_COMPATIBLE_TRUNK\", \"DISPATCH_YARD_GAP_TRAIN\"]",
+    "mask_revision": "2",
+    "graph_version": "e184af352bc6",
+    "constants_hash": "610034af56bddaa1ec39a069d653170ed110c20c",
+    "trained_steps": "11007360",
+    "created_utc": "2026-11-22T15:03:20Z",
+    "producer": "subway-domino rl.export_onnx"
+  },
+  "created_utc": "2026-11-22T20:31:40Z",
+  "seed_base": 1000000,
+  "graph_version": "e184af352bc6",
+  "constants_hash": "610034af56bddaa1ec39a069d653170ed110c20c",
+  "summary": {
+    "n_seeds": 50,
+    "metrics": {
+      "avg_wait_min": {
+        "normal_mean": 4.92354432288552,
+        "normal_ci95": [
+          4.3281887821100336,
+          5.537028575009297
+        ],
+        "ai_mean": 4.67247633079306,
+        "ai_ci95": [
+          4.063173068422927,
+          5.327447291249136
+        ],
+        "diff_mean": -0.251067992092459,
+        "diff_ci95": [
+          -0.41002076655826897,
+          -0.09005263315528118
+        ],
+        "pct_change": -5.099334455576047,
+        "lower_is_better": true,
+        "ai_better": true
+      },
+      "overcrowded_platform_min": {
+        "normal_mean": 21.85,
+        "normal_ci95": [
+          9.833083333333333,
+          35.94708333333332
+        ],
+        "ai_mean": 19.78,
+        "ai_ci95": [
+          8.629916666666668,
+          33.62666666666666
+        ],
+        "diff_mean": -2.0699999999999994,
+        "diff_ci95": [
+          -7.723416666666667,
+          2.8733333333333335
+        ],
+        "pct_change": -9.473684210526317,
+        "lower_is_better": true,
+        "ai_better": true
+      },
+      "tunnel_stuck_train_min": {
+        "normal_mean": 453.83333333333326,
+        "normal_ci95": [
+          314.3393333333333,
+          608.2759166666665
+        ],
+        "ai_mean": 329.61666666666656,
+        "ai_ci95": [
+          216.13924999999998,
+          459.1431666666666
+        ],
+        "diff_mean": -124.21666666666668,
+        "diff_ci95": [
+          -210.2848333333333,
+          -44.89258333333335
+        ],
+        "pct_change": -27.370547190598614,
+        "lower_is_better": true,
+        "ai_better": true
+      },
+      "riders_served": {
+        "normal_mean": 356448.4514245575,
+        "normal_ci95": [
+          296238.8653567214,
+          415471.02378590713
+        ],
+        "ai_mean": 356879.54673972464,
+        "ai_ci95": [
+          296358.2444789159,
+          416066.0638464886
+        ],
+        "diff_mean": 431.0953151670752,
+        "diff_ci95": [
+          -673.1353821617707,
+          1664.7622631653185
+        ],
+        "pct_change": 0.12094183982123376,
+        "lower_is_better": false,
+        "ai_better": true
+      },
+      "total_cost": {
+        "normal_mean": 18260042.42402086,
+        "normal_ci95": [
+          13822392.810976906,
+          23204521.3321103
+        ],
+        "ai_mean": 14043239.11300564,
+        "ai_ci95": [
+          10468169.450202743,
+          18525292.23833562
+        ],
+        "diff_mean": -4216803.311015218,
+        "diff_ci95": [
+          -7137931.882612023,
+          -1317716.4314837775
+        ],
+        "pct_change": -23.093064151198618,
+        "lower_is_better": true,
+        "ai_better": true
+      }
+    },
+    "seed_win_rate": 0.86,
+    "mean_rel_cost_reduction": 0.13974727984753663,
+    "ui_metrics_better": 4,
+    "require_win_pass": true,
+    "acceptance_bar": {
+      "cost_better": true,
+      "win_rate_ok": true,
+      "stuck_reduction": 0.27370547190598615,
+      "stuck_ok": false,
+      "wait_reduction": 0.05099334455576047,
+      "excess_wait_recovery": 0.24412353116783944,
+      "excess_wait_recovery_ci95": [
+        0.09412047748295581,
+        0.3873314147278454
+      ],
+      "excess_wait_recovery_target": 0.2,
+      "wait_ok": true,
+      "pass": false
+    },
+    "excess_wait": {
+      "calm_mean": 3.895124109287297,
+      "excess_mean": 1.0284465036672155,
+      "recovery": 0.24412353116783944,
+      "recovery_ci95": [
+        0.09412047748295581,
+        0.3873314147278454
+      ]
+    },
+    "mean_actions_per_episode": {
+      "HOLD_IN_STATION": 1233.9,
+      "RUN_EXPRESS": 5.6,
+      "RUN_LOCAL": 10.62,
+      "SKIP_STOP": 54.1,
+      "SHORT_TURN_RELAY": 4.5,
+      "REROUTE_VIA_COMPATIBLE_TRUNK": 1.4,
+      "DISPATCH_YARD_GAP_TRAIN": 5.46
+    }
+  },
+  "rows": [
+    {
+      "seed": 1000000,
+      "profile": "am_peak",
+      "n_disruptions": 3,
+      "demand_scale": 0.9647,
+      "normal": {
+        "avg_wait_min": 4.334678303196232,
+        "overcrowded_platform_min": 1.6666666666666665,
+        "tunnel_stuck_train_min": 718.0,
+        "riders_served": 483920.83360797365,
+        "cost": {
+          "wait": 19585212.559636373,
+          "tunnel": 7476607.548713906,
+          "hold": 739.5146622750119,
+          "crowd": 43.92946262382278,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 27062603.55247519
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 3.8676362815575387,
+        "overcrowded_platform_min": 1.0,
+        "tunnel_stuck_train_min": 557.3333333333333,
+        "riders_served": 482245.11967350706,
+        "cost": {
+          "wait": 14908072.92009838,
+          "tunnel": 4804768.210277784,
+          "hold": 16453.023260212503,
+          "crowd": 644.9058718919929,
+          "short_turn": 41338.59147320837,
+          "skip": 16476.361463788886,
+          "reroute": 5481.338390539455,
+          "yard": 2800.0,
+          "total": 19796035.3508358
+        },
+        "actions": {
+          "HOLD_IN_STATION": 2125,
+          "RUN_EXPRESS": 4,
+          "RUN_LOCAL": 11,
+          "SKIP_STOP": 71,
+          "SHORT_TURN_RELAY": 11,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 9,
+          "DISPATCH_YARD_GAP_TRAIN": 7
+        },
+        "decisions": 4069,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.6968590547054903
+      },
+      "seconds": 3.1006841249763966
+    },
+    {
+      "seed": 1000001,
+      "profile": "midday",
+      "n_disruptions": 2,
+      "demand_scale": 1.1332,
+      "normal": {
+        "avg_wait_min": 5.69570224773265,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 1903.1666666666665,
+        "riders_served": 344430.22417555714,
+        "cost": {
+          "wait": 27505859.294664267,
+          "tunnel": 17567845.04848552,
+          "hold": 3511.6013395631317,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 45077215.94448932
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 4.950232576704987,
+        "overcrowded_platform_min": 7.333333333333333,
+        "tunnel_stuck_train_min": 1097.1666666666665,
+        "riders_served": 351941.68125143694,
+        "cost": {
+          "wait": 20039614.841722295,
+          "tunnel": 3874052.65555187,
+          "hold": 25965.695693575883,
+          "crowd": 31692.393411037454,
+          "short_turn": 20999.942519065757,
+          "skip": 48365.124696988205,
+          "reroute": 2304.852663830331,
+          "yard": 4000.0,
+          "total": 24046995.506258626
+        },
+        "actions": {
+          "HOLD_IN_STATION": 3695,
+          "RUN_EXPRESS": 25,
+          "RUN_LOCAL": 35,
+          "SKIP_STOP": 259,
+          "SHORT_TURN_RELAY": 8,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 5,
+          "DISPATCH_YARD_GAP_TRAIN": 10
+        },
+        "decisions": 5473,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.6283813306782218
+      },
+      "seconds": 2.8806432919809595
+    },
+    {
+      "seed": 1000002,
+      "profile": "pm_rush",
+      "n_disruptions": 3,
+      "demand_scale": 1.0692,
+      "normal": {
+        "avg_wait_min": 2.694808477712574,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 334.3333333333333,
+        "riders_served": 601940.1285756317,
+        "cost": {
+          "wait": 7644798.981268082,
+          "tunnel": 1958086.5354552208,
+          "hold": 838.1650430863269,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 9603723.68176639
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.4170180504391627,
+        "overcrowded_platform_min": 2.5,
+        "tunnel_stuck_train_min": 110.33333333333333,
+        "riders_served": 603305.0591375233,
+        "cost": {
+          "wait": 5642453.179618073,
+          "tunnel": 214235.6440767811,
+          "hold": 6691.700668944417,
+          "crowd": 2.6607264831744426,
+          "short_turn": 7241.562767323458,
+          "skip": 8434.233300725207,
+          "reroute": 0.0,
+          "yard": 1200.0,
+          "total": 5880258.981158328
+        },
+        "actions": {
+          "HOLD_IN_STATION": 975,
+          "RUN_EXPRESS": 1,
+          "RUN_LOCAL": 1,
+          "SKIP_STOP": 36,
+          "SHORT_TURN_RELAY": 3,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 3
+        },
+        "decisions": 2020,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.352542350724481
+      },
+      "seconds": 2.9152057910105214
+    },
+    {
+      "seed": 1000003,
+      "profile": "late_night",
+      "n_disruptions": 1,
+      "demand_scale": 0.9611,
+      "normal": {
+        "avg_wait_min": 8.462110988120891,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 11.666666666666666,
+        "riders_served": 22010.211650367404,
+        "cost": {
+          "wait": 7082394.775458464,
+          "tunnel": 12952.506684334052,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 7095347.2821427975
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 8.518778368816559,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 3.833333333333333,
+        "riders_served": 22021.989287073375,
+        "cost": {
+          "wait": 7192641.966338514,
+          "tunnel": 3205.706961963584,
+          "hold": 791.0323062920394,
+          "crowd": 0.0,
+          "short_turn": 464.6939272627352,
+          "skip": 160.2788243724513,
+          "reroute": 0.0,
+          "yard": 800.0,
+          "total": 7198063.678358406
+        },
+        "actions": {
+          "HOLD_IN_STATION": 210,
+          "RUN_EXPRESS": 3,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 2,
+          "SHORT_TURN_RELAY": 1,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 2
+        },
+        "decisions": 522,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 8.34592845488187
+      },
+      "seconds": 1.688977874990087
+    },
+    {
+      "seed": 1000004,
+      "profile": "am_peak",
+      "n_disruptions": 2,
+      "demand_scale": 1.0534,
+      "normal": {
+        "avg_wait_min": 2.9776548377348755,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 984.1666666666666,
+        "riders_served": 523902.2401429087,
+        "cost": {
+          "wait": 8916137.590220118,
+          "tunnel": 9790776.26436563,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 18706913.854585744
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.894266212480974,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 633.0,
+        "riders_served": 523226.8327470399,
+        "cost": {
+          "wait": 8212966.732443048,
+          "tunnel": 4298976.280328045,
+          "hold": 10000.567886231172,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 25500.294278463418,
+          "reroute": 0.0,
+          "yard": 4000.0,
+          "total": 12551443.874935802
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1610,
+          "RUN_EXPRESS": 12,
+          "RUN_LOCAL": 37,
+          "SKIP_STOP": 107,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 10
+        },
+        "decisions": 3709,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.7002411538284976
+      },
+      "seconds": 3.0085992920212448
+    },
+    {
+      "seed": 1000005,
+      "profile": "midday",
+      "n_disruptions": 3,
+      "demand_scale": 0.9071,
+      "normal": {
+        "avg_wait_min": 2.8497334409100006,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 561.1666666666666,
+        "riders_served": 288556.8265316781,
+        "cost": {
+          "wait": 4584430.663593554,
+          "tunnel": 2675643.8248631624,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 7260074.488456723
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 4.566475028228284,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 678.8333333333333,
+        "riders_served": 283412.6799220809,
+        "cost": {
+          "wait": 13866027.7419474,
+          "tunnel": 2228679.368036289,
+          "hold": 7378.669833813092,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 13971.610642971953,
+          "reroute": 0.0,
+          "yard": 800.0,
+          "total": 16116857.39046047
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1387,
+          "RUN_EXPRESS": 13,
+          "RUN_LOCAL": 22,
+          "SKIP_STOP": 133,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 2
+        },
+        "decisions": 2411,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.66503143169731
+      },
+      "seconds": 2.7998944999999367
+    },
+    {
+      "seed": 1000006,
+      "profile": "pm_rush",
+      "n_disruptions": 3,
+      "demand_scale": 1.0224,
+      "normal": {
+        "avg_wait_min": 5.203092245470633,
+        "overcrowded_platform_min": 184.33333333333331,
+        "tunnel_stuck_train_min": 1765.6666666666665,
+        "riders_served": 547490.134950734,
+        "cost": {
+          "wait": 35124326.588688925,
+          "tunnel": 27956762.28551081,
+          "hold": 1277.5459094335524,
+          "crowd": 650908.8227387127,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 63733275.24284786
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 4.954016828781872,
+        "overcrowded_platform_min": 155.83333333333331,
+        "tunnel_stuck_train_min": 465.0,
+        "riders_served": 563100.5053465692,
+        "cost": {
+          "wait": 29097228.09005579,
+          "tunnel": 1425005.8895929737,
+          "hold": 17181.071414155893,
+          "crowd": 553913.9088178291,
+          "short_turn": 31747.90033910451,
+          "skip": 24928.93295635275,
+          "reroute": 6477.247980748201,
+          "yard": 4400.0,
+          "total": 31160883.041156977
+        },
+        "actions": {
+          "HOLD_IN_STATION": 2395,
+          "RUN_EXPRESS": 7,
+          "RUN_LOCAL": 14,
+          "SKIP_STOP": 112,
+          "SHORT_TURN_RELAY": 11,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 11,
+          "DISPATCH_YARD_GAP_TRAIN": 11
+        },
+        "decisions": 3513,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.3588150661596727
+      },
+      "seconds": 3.0652486669714563
+    },
+    {
+      "seed": 1000007,
+      "profile": "late_night",
+      "n_disruptions": 3,
+      "demand_scale": 1.1072,
+      "normal": {
+        "avg_wait_min": 8.155084423251912,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 10.833333333333332,
+        "riders_served": 25261.516927775134,
+        "cost": {
+          "wait": 7469271.114110603,
+          "tunnel": 18211.67912438845,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 7487482.79323499
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 8.066906049754833,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 4.833333333333333,
+        "riders_served": 25335.91009252364,
+        "cost": {
+          "wait": 7255421.658004761,
+          "tunnel": 5433.668164010622,
+          "hold": 750.5945109254427,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 8.844209049063295,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 7261614.764888742
+        },
+        "actions": {
+          "HOLD_IN_STATION": 191,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 1,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 294,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 7.982507099240382
+      },
+      "seconds": 1.689718083012849
+    },
+    {
+      "seed": 1000008,
+      "profile": "am_peak",
+      "n_disruptions": 3,
+      "demand_scale": 1.0568,
+      "normal": {
+        "avg_wait_min": 3.395161985993561,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 837.5,
+        "riders_served": 529580.7855574561,
+        "cost": {
+          "wait": 12356084.825078856,
+          "tunnel": 4570705.717308818,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 16926790.542387675
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 3.296661439257005,
+        "overcrowded_platform_min": 20.0,
+        "tunnel_stuck_train_min": 736.1666666666666,
+        "riders_served": 526884.3187818557,
+        "cost": {
+          "wait": 11623478.00095003,
+          "tunnel": 2645705.768468348,
+          "hold": 15232.942181098177,
+          "crowd": 120997.64073056795,
+          "short_turn": 60236.485907404385,
+          "skip": 26296.227833207035,
+          "reroute": 2259.7905607013336,
+          "yard": 3600.0,
+          "total": 14497806.856631348
+        },
+        "actions": {
+          "HOLD_IN_STATION": 2392,
+          "RUN_EXPRESS": 13,
+          "RUN_LOCAL": 34,
+          "SKIP_STOP": 133,
+          "SHORT_TURN_RELAY": 8,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 3,
+          "DISPATCH_YARD_GAP_TRAIN": 9
+        },
+        "decisions": 5219,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.7109332086542373
+      },
+      "seconds": 3.0720991659909487
+    },
+    {
+      "seed": 1000009,
+      "profile": "midday",
+      "n_disruptions": 3,
+      "demand_scale": 0.945,
+      "normal": {
+        "avg_wait_min": 3.3537225081371274,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 509.66666666666663,
+        "riders_served": 302364.68484413106,
+        "cost": {
+          "wait": 7099978.030172276,
+          "tunnel": 1461421.396865539,
+          "hold": 340.61951559092495,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 8561740.046553409
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.811364482534607,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 195.33333333333331,
+        "riders_served": 302716.055874483,
+        "cost": {
+          "wait": 4576625.199604363,
+          "tunnel": 482763.22647095047,
+          "hold": 6263.40490554579,
+          "crowd": 0.0,
+          "short_turn": 6471.165813919925,
+          "skip": 8167.122415987682,
+          "reroute": 364.8405245467392,
+          "yard": 2800.0,
+          "total": 5083454.959735309
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1189,
+          "RUN_EXPRESS": 8,
+          "RUN_LOCAL": 10,
+          "SKIP_STOP": 79,
+          "SHORT_TURN_RELAY": 9,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 1,
+          "DISPATCH_YARD_GAP_TRAIN": 7
+        },
+        "decisions": 2286,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.618098690880682
+      },
+      "seconds": 2.762489708024077
+    },
+    {
+      "seed": 1000010,
+      "profile": "pm_rush",
+      "n_disruptions": 3,
+      "demand_scale": 0.9393,
+      "normal": {
+        "avg_wait_min": 5.10007729772863,
+        "overcrowded_platform_min": 82.5,
+        "tunnel_stuck_train_min": 1099.5,
+        "riders_served": 521346.5578017692,
+        "cost": {
+          "wait": 30647263.545639258,
+          "tunnel": 7537074.24749329,
+          "hold": 0.0,
+          "crowd": 97267.6571330339,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 38281605.450265594
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 3.0578772877935902,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 571.6666666666666,
+        "riders_served": 528261.8169516762,
+        "cost": {
+          "wait": 9243198.94256731,
+          "tunnel": 5172827.845422017,
+          "hold": 8502.893281360657,
+          "crowd": 0.0,
+          "short_turn": 30509.88849876348,
+          "skip": 8385.29776290809,
+          "reroute": 0.0,
+          "yard": 2400.0,
+          "total": 14465824.867532369
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1494,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 53,
+          "SHORT_TURN_RELAY": 19,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 6
+        },
+        "decisions": 2957,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.3973768439633454
+      },
+      "seconds": 2.9880597080336884
+    },
+    {
+      "seed": 1000011,
+      "profile": "late_night",
+      "n_disruptions": 2,
+      "demand_scale": 1.074,
+      "normal": {
+        "avg_wait_min": 8.239274099557457,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 48.5,
+        "riders_served": 24546.825352144668,
+        "cost": {
+          "wait": 7410896.966368876,
+          "tunnel": 121413.97706361423,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 7532310.943432489
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 8.1450160602135,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 21.833333333333332,
+        "riders_served": 24521.245846519254,
+        "cost": {
+          "wait": 7243758.752470072,
+          "tunnel": 59278.373493884144,
+          "hold": 300.2733872334898,
+          "crowd": 0.0,
+          "short_turn": 568.0888749817792,
+          "skip": 94.24350934107544,
+          "reroute": 0.0,
+          "yard": 1600.0,
+          "total": 7305599.731735509
+        },
+        "actions": {
+          "HOLD_IN_STATION": 76,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 1,
+          "SKIP_STOP": 1,
+          "SHORT_TURN_RELAY": 1,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 4
+        },
+        "decisions": 149,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 8.063555516708849
+      },
+      "seconds": 1.657349165994674
+    },
+    {
+      "seed": 1000012,
+      "profile": "am_peak",
+      "n_disruptions": 2,
+      "demand_scale": 1.0945,
+      "normal": {
+        "avg_wait_min": 3.3645324976761444,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 323.66666666666663,
+        "riders_served": 548998.925847368,
+        "cost": {
+          "wait": 12524532.711351553,
+          "tunnel": 2160894.104738664,
+          "hold": 422.9900032005152,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 14685849.806093428
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.7442520967355266,
+        "overcrowded_platform_min": 7.833333333333333,
+        "tunnel_stuck_train_min": 86.5,
+        "riders_served": 551811.6032721404,
+        "cost": {
+          "wait": 7566095.634506993,
+          "tunnel": 252687.4730336305,
+          "hold": 6464.197462704737,
+          "crowd": 12471.98268493987,
+          "short_turn": 17256.43094011971,
+          "skip": 6804.77618875447,
+          "reroute": 0.0,
+          "yard": 400.0,
+          "total": 7862180.494817133
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1001,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 1,
+          "SKIP_STOP": 43,
+          "SHORT_TURN_RELAY": 4,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 1
+        },
+        "decisions": 3188,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.7064605348761095
+      },
+      "seconds": 2.8958521250169724
+    },
+    {
+      "seed": 1000013,
+      "profile": "midday",
+      "n_disruptions": 3,
+      "demand_scale": 1.0949,
+      "normal": {
+        "avg_wait_min": 3.589620302623128,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 377.5,
+        "riders_served": 349661.68455270707,
+        "cost": {
+          "wait": 9636179.302203892,
+          "tunnel": 1828354.8422217043,
+          "hold": 952.5666729487876,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 11465486.711098537
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 3.484719857610513,
+        "overcrowded_platform_min": 19.833333333333332,
+        "tunnel_stuck_train_min": 219.66666666666666,
+        "riders_served": 349701.0526322026,
+        "cost": {
+          "wait": 9148932.774862463,
+          "tunnel": 880897.3643563817,
+          "hold": 6254.269660768762,
+          "crowd": 81606.73301120165,
+          "short_turn": 30194.73216415396,
+          "skip": 7785.295982144183,
+          "reroute": 0.0,
+          "yard": 1200.0,
+          "total": 10156871.170037106
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1038,
+          "RUN_EXPRESS": 2,
+          "RUN_LOCAL": 7,
+          "SKIP_STOP": 68,
+          "SHORT_TURN_RELAY": 8,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 3
+        },
+        "decisions": 1846,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.592721035667162
+      },
+      "seconds": 3.462918333010748
+    },
+    {
+      "seed": 1000014,
+      "profile": "pm_rush",
+      "n_disruptions": 2,
+      "demand_scale": 0.9065,
+      "normal": {
+        "avg_wait_min": 6.227937594587394,
+        "overcrowded_platform_min": 135.83333333333331,
+        "tunnel_stuck_train_min": 1074.6666666666665,
+        "riders_served": 494897.0436391567,
+        "cost": {
+          "wait": 43084667.44919195,
+          "tunnel": 9552910.008528927,
+          "hold": 3280.8289992407226,
+          "crowd": 93721.49968589567,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 52734579.78640597
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 5.690758571555082,
+        "overcrowded_platform_min": 93.0,
+        "tunnel_stuck_train_min": 616.0,
+        "riders_served": 496044.3391621823,
+        "cost": {
+          "wait": 34280283.25932596,
+          "tunnel": 3458678.242770126,
+          "hold": 22334.876680340618,
+          "crowd": 64621.10338806347,
+          "short_turn": 33540.25452222983,
+          "skip": 29976.54622028057,
+          "reroute": 0.0,
+          "yard": 2400.0,
+          "total": 37891834.28290699
+        },
+        "actions": {
+          "HOLD_IN_STATION": 2714,
+          "RUN_EXPRESS": 14,
+          "RUN_LOCAL": 22,
+          "SKIP_STOP": 110,
+          "SHORT_TURN_RELAY": 13,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 6
+        },
+        "decisions": 4895,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.419503761389748
+      },
+      "seconds": 3.745753000024706
+    },
+    {
+      "seed": 1000015,
+      "profile": "late_night",
+      "n_disruptions": 3,
+      "demand_scale": 0.9708,
+      "normal": {
+        "avg_wait_min": 7.960183510395946,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 13.0,
+        "riders_served": 22196.55078036552,
+        "cost": {
+          "wait": 6199335.842751255,
+          "tunnel": 11735.786483724598,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 6211071.629234983
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 7.9787258024545755,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 0.0,
+        "riders_served": 22206.673835811554,
+        "cost": {
+          "wait": 6215335.380872075,
+          "tunnel": 3109.0613281021165,
+          "hold": 829.8128970861488,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 254.10749187597975,
+          "reroute": 0.0,
+          "yard": 2400.0,
+          "total": 6221928.362589141
+        },
+        "actions": {
+          "HOLD_IN_STATION": 215,
+          "RUN_EXPRESS": 2,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 2,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 6
+        },
+        "decisions": 369,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 7.8182466779774655
+      },
+      "seconds": 2.1146934590069577
+    },
+    {
+      "seed": 1000016,
+      "profile": "am_peak",
+      "n_disruptions": 2,
+      "demand_scale": 1.1011,
+      "normal": {
+        "avg_wait_min": 3.4818957596999924,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 212.83333333333331,
+        "riders_served": 554531.2733188507,
+        "cost": {
+          "wait": 13263393.381658481,
+          "tunnel": 988802.667692113,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 14252196.049350612
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 3.0875567729124294,
+        "overcrowded_platform_min": 3.0,
+        "tunnel_stuck_train_min": 174.5,
+        "riders_served": 553284.5702965779,
+        "cost": {
+          "wait": 9908604.95479026,
+          "tunnel": 521763.8437115264,
+          "hold": 9327.18831569329,
+          "crowd": 545.1137737538702,
+          "short_turn": 20231.599282538853,
+          "skip": 10907.047969076704,
+          "reroute": 3017.7437012358378,
+          "yard": 2400.0,
+          "total": 10476797.491544083
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1318,
+          "RUN_EXPRESS": 5,
+          "RUN_LOCAL": 6,
+          "SKIP_STOP": 47,
+          "SHORT_TURN_RELAY": 5,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 4,
+          "DISPATCH_YARD_GAP_TRAIN": 6
+        },
+        "decisions": 2670,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.6575229527653725
+      },
+      "seconds": 3.5821412919904105
+    },
+    {
+      "seed": 1000017,
+      "profile": "midday",
+      "n_disruptions": 1,
+      "demand_scale": 0.9979,
+      "normal": {
+        "avg_wait_min": 2.9404223694178286,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 119.33333333333333,
+        "riders_served": 320130.661199153,
+        "cost": {
+          "wait": 5371399.062696443,
+          "tunnel": 331248.7023502717,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 5702647.765046712
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.865070456652242,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 73.83333333333333,
+        "riders_served": 320055.8200409045,
+        "cost": {
+          "wait": 5009169.701462402,
+          "tunnel": 219658.15372617455,
+          "hold": 4148.692252058648,
+          "crowd": 0.0,
+          "short_turn": 11043.939984781524,
+          "skip": 3359.485534994588,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 5247379.972960395
+        },
+        "actions": {
+          "HOLD_IN_STATION": 761,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 1,
+          "SKIP_STOP": 35,
+          "SHORT_TURN_RELAY": 4,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 2035,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.644968919586112
+      },
+      "seconds": 3.310956542030908
+    },
+    {
+      "seed": 1000018,
+      "profile": "pm_rush",
+      "n_disruptions": 2,
+      "demand_scale": 0.9661,
+      "normal": {
+        "avg_wait_min": 2.676672961754822,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 164.0,
+        "riders_served": 546484.5538544642,
+        "cost": {
+          "wait": 6749937.286833796,
+          "tunnel": 497122.06860580196,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 7247059.3554396015
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.5805445830042872,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 58.0,
+        "riders_served": 545918.8131756033,
+        "cost": {
+          "wait": 6110984.6100224545,
+          "tunnel": 145973.85442598167,
+          "hold": 6220.14917367801,
+          "crowd": 0.0,
+          "short_turn": 3184.0216191434147,
+          "skip": 9279.950471897526,
+          "reroute": 0.0,
+          "yard": 3200.0,
+          "total": 6278842.585713146
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1037,
+          "RUN_EXPRESS": 11,
+          "RUN_LOCAL": 2,
+          "SKIP_STOP": 26,
+          "SHORT_TURN_RELAY": 6,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 8
+        },
+        "decisions": 2108,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.38221868003548
+      },
+      "seconds": 3.483938958030194
+    },
+    {
+      "seed": 1000019,
+      "profile": "late_night",
+      "n_disruptions": 3,
+      "demand_scale": 1.1218,
+      "normal": {
+        "avg_wait_min": 8.199398655104625,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 64.83333333333333,
+        "riders_served": 25568.935006293053,
+        "cost": {
+          "wait": 7635850.809536792,
+          "tunnel": 123776.20818115983,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 7759627.017717954
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 8.048011519636663,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 0.0,
+        "riders_served": 25662.53946318569,
+        "cost": {
+          "wait": 7322610.093603513,
+          "tunnel": 2161.980235296018,
+          "hold": 506.8921435107128,
+          "crowd": 0.0,
+          "short_turn": 629.5349040539951,
+          "skip": 231.5836416070585,
+          "reroute": 0.0,
+          "yard": 1600.0,
+          "total": 7327740.08452798
+        },
+        "actions": {
+          "HOLD_IN_STATION": 124,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 5,
+          "SKIP_STOP": 1,
+          "SHORT_TURN_RELAY": 1,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 4
+        },
+        "decisions": 209,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 8.006469270002817
+      },
+      "seconds": 2.325198792037554
+    },
+    {
+      "seed": 1000020,
+      "profile": "am_peak",
+      "n_disruptions": 3,
+      "demand_scale": 1.104,
+      "normal": {
+        "avg_wait_min": 4.47174154105431,
+        "overcrowded_platform_min": 4.333333333333333,
+        "tunnel_stuck_train_min": 887.6666666666666,
+        "riders_served": 544731.8427429164,
+        "cost": {
+          "wait": 23693067.007592008,
+          "tunnel": 6224840.700697367,
+          "hold": 2468.841392556341,
+          "crowd": 548.7341382232412,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 29920925.283820145
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 3.89974714339323,
+        "overcrowded_platform_min": 11.0,
+        "tunnel_stuck_train_min": 783.1666666666666,
+        "riders_served": 543212.6315785588,
+        "cost": {
+          "wait": 16972331.34374028,
+          "tunnel": 3597142.386110209,
+          "hold": 23644.997098967644,
+          "crowd": 2563.0532474362503,
+          "short_turn": 28144.491970070274,
+          "skip": 36368.77991576599,
+          "reroute": 2693.6367375992286,
+          "yard": 5600.0,
+          "total": 20668488.688820317
+        },
+        "actions": {
+          "HOLD_IN_STATION": 2973,
+          "RUN_EXPRESS": 9,
+          "RUN_LOCAL": 27,
+          "SKIP_STOP": 114,
+          "SHORT_TURN_RELAY": 9,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 3,
+          "DISPATCH_YARD_GAP_TRAIN": 14
+        },
+        "decisions": 4688,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.6746839650127963
+      },
+      "seconds": 3.5884352499851957
+    },
+    {
+      "seed": 1000021,
+      "profile": "midday",
+      "n_disruptions": 2,
+      "demand_scale": 0.9195,
+      "normal": {
+        "avg_wait_min": 2.644583873179488,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 50.0,
+        "riders_served": 295958.11968134873,
+        "cost": {
+          "wait": 3842775.0856155334,
+          "tunnel": 95039.17443708885,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 3937814.260052621
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.742391591534557,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 58.83333333333333,
+        "riders_served": 295633.6113094529,
+        "cost": {
+          "wait": 4207256.997405127,
+          "tunnel": 105023.56590959668,
+          "hold": 3187.5802737096783,
+          "crowd": 0.0,
+          "short_turn": 1651.948376886506,
+          "skip": 5603.524213200147,
+          "reroute": 0.0,
+          "yard": 400.0,
+          "total": 4323123.616178522
+        },
+        "actions": {
+          "HOLD_IN_STATION": 617,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 2,
+          "SKIP_STOP": 52,
+          "SHORT_TURN_RELAY": 2,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 1
+        },
+        "decisions": 1577,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.6219705905427095
+      },
+      "seconds": 3.2806670420104638
+    },
+    {
+      "seed": 1000022,
+      "profile": "pm_rush",
+      "n_disruptions": 3,
+      "demand_scale": 0.9332,
+      "normal": {
+        "avg_wait_min": 6.39504239904252,
+        "overcrowded_platform_min": 85.16666666666666,
+        "tunnel_stuck_train_min": 1958.5,
+        "riders_served": 508087.89132568205,
+        "cost": {
+          "wait": 48515806.680875406,
+          "tunnel": 14456964.96278946,
+          "hold": 3576.753759682982,
+          "crowd": 11135.87547346465,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 62987484.27289806
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 5.901506026355602,
+        "overcrowded_platform_min": 111.83333333333333,
+        "tunnel_stuck_train_min": 1789.8333333333333,
+        "riders_served": 504499.9796023783,
+        "cost": {
+          "wait": 42755974.05016101,
+          "tunnel": 11668307.424657347,
+          "hold": 38701.65506036563,
+          "crowd": 21472.68004174241,
+          "short_turn": 34102.32926202165,
+          "skip": 37927.41779140129,
+          "reroute": 5646.14280657729,
+          "yard": 6400.0,
+          "total": 54568531.699780494
+        },
+        "actions": {
+          "HOLD_IN_STATION": 5309,
+          "RUN_EXPRESS": 31,
+          "RUN_LOCAL": 42,
+          "SKIP_STOP": 114,
+          "SHORT_TURN_RELAY": 21,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 13,
+          "DISPATCH_YARD_GAP_TRAIN": 16
+        },
+        "decisions": 6898,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.3484976451920647
+      },
+      "seconds": 3.6537797499913722
+    },
+    {
+      "seed": 1000023,
+      "profile": "late_night",
+      "n_disruptions": 2,
+      "demand_scale": 0.92,
+      "normal": {
+        "avg_wait_min": 8.229066805367706,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 7.5,
+        "riders_served": 21008.27238388883,
+        "cost": {
+          "wait": 6333534.258574993,
+          "tunnel": 8206.073119280576,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 6341740.331694271
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 8.201275076053124,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 0.0,
+        "riders_served": 21025.384070804026,
+        "cost": {
+          "wait": 6263691.977025406,
+          "tunnel": 1068.0381092039147,
+          "hold": 479.6193559327634,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 109.9581142190049,
+          "reroute": 0.0,
+          "yard": 800.0,
+          "total": 6266149.592604764
+        },
+        "actions": {
+          "HOLD_IN_STATION": 122,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 1,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 2
+        },
+        "decisions": 435,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 8.148850423452734
+      },
+      "seconds": 2.3552966249990277
+    },
+    {
+      "seed": 1000024,
+      "profile": "am_peak",
+      "n_disruptions": 1,
+      "demand_scale": 0.9483,
+      "normal": {
+        "avg_wait_min": 3.0871634706396436,
+        "overcrowded_platform_min": 7.333333333333333,
+        "tunnel_stuck_train_min": 183.16666666666666,
+        "riders_served": 477845.3582356995,
+        "cost": {
+          "wait": 8828360.567676822,
+          "tunnel": 752803.5409668711,
+          "hold": 0.0,
+          "crowd": 1568.690799410957,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 9582732.7994431
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.850702197425973,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 124.5,
+        "riders_served": 477498.14165486244,
+        "cost": {
+          "wait": 7222876.6558012385,
+          "tunnel": 336499.02805704577,
+          "hold": 5410.304157972478,
+          "crowd": 0.0,
+          "short_turn": 7397.96792117283,
+          "skip": 3220.0409507897953,
+          "reroute": 0.0,
+          "yard": 1600.0,
+          "total": 7577003.996888218
+        },
+        "actions": {
+          "HOLD_IN_STATION": 960,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 1,
+          "SKIP_STOP": 35,
+          "SHORT_TURN_RELAY": 5,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 4
+        },
+        "decisions": 2620,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.6916143382249884
+      },
+      "seconds": 3.4092510829796083
+    },
+    {
+      "seed": 1000025,
+      "profile": "midday",
+      "n_disruptions": 2,
+      "demand_scale": 0.9502,
+      "normal": {
+        "avg_wait_min": 2.639159522817465,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 27.0,
+        "riders_served": 305405.7724505805,
+        "cost": {
+          "wait": 3951326.093474494,
+          "tunnel": 73708.69114832574,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 4025034.784622822
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.624929769597049,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 37.666666666666664,
+        "riders_served": 305350.81123606494,
+        "cost": {
+          "wait": 3882285.144438628,
+          "tunnel": 80490.50530658128,
+          "hold": 2663.7373314815104,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 2748.7455748320617,
+          "reroute": 0.0,
+          "yard": 800.0,
+          "total": 3968988.132651524
+        },
+        "actions": {
+          "HOLD_IN_STATION": 526,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 3,
+          "SKIP_STOP": 39,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 2
+        },
+        "decisions": 1377,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.608759082590672
+      },
+      "seconds": 3.218901249987539
+    },
+    {
+      "seed": 1000026,
+      "profile": "pm_rush",
+      "n_disruptions": 1,
+      "demand_scale": 0.9707,
+      "normal": {
+        "avg_wait_min": 2.777819163964792,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 236.66666666666666,
+        "riders_served": 549646.7001478892,
+        "cost": {
+          "wait": 7278355.107857208,
+          "tunnel": 994318.7761993296,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 8272673.884056532
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.6494624909470854,
+        "overcrowded_platform_min": 0.5,
+        "tunnel_stuck_train_min": 341.3333333333333,
+        "riders_served": 546596.0894321426,
+        "cost": {
+          "wait": 6399604.445115437,
+          "tunnel": 978084.0194078404,
+          "hold": 12497.522178855826,
+          "crowd": 224.81203611804926,
+          "short_turn": 10126.391863768282,
+          "skip": 21241.220073878067,
+          "reroute": 623.0471668173598,
+          "yard": 3200.0,
+          "total": 7425601.45784271
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1842,
+          "RUN_EXPRESS": 1,
+          "RUN_LOCAL": 26,
+          "SKIP_STOP": 41,
+          "SHORT_TURN_RELAY": 2,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 1,
+          "DISPATCH_YARD_GAP_TRAIN": 8
+        },
+        "decisions": 3686,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.40582967679442
+      },
+      "seconds": 3.2316402919823304
+    },
+    {
+      "seed": 1000027,
+      "profile": "late_night",
+      "n_disruptions": 3,
+      "demand_scale": 1.0348,
+      "normal": {
+        "avg_wait_min": 7.960036854378862,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 49.0,
+        "riders_served": 23445.22704467714,
+        "cost": {
+          "wait": 6588966.357772823,
+          "tunnel": 28206.567390150813,
+          "hold": 397.91797651666326,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 6617570.843139488
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 8.01111743302496,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 13.5,
+        "riders_served": 23455.388603883075,
+        "cost": {
+          "wait": 6698010.050543033,
+          "tunnel": 6837.2128244815285,
+          "hold": 1287.5863690359895,
+          "crowd": 0.0,
+          "short_turn": 557.5067480365453,
+          "skip": 53.42815329420128,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 6706745.784637879
+        },
+        "actions": {
+          "HOLD_IN_STATION": 306,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 2,
+          "SHORT_TURN_RELAY": 1,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 450,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 7.809654215614177
+      },
+      "seconds": 1.801402750017587
+    },
+    {
+      "seed": 1000028,
+      "profile": "am_peak",
+      "n_disruptions": 1,
+      "demand_scale": 0.9712,
+      "normal": {
+        "avg_wait_min": 3.071993807451079,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 81.0,
+        "riders_served": 488058.71265769197,
+        "cost": {
+          "wait": 8892552.510156875,
+          "tunnel": 503483.8279281385,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 9396036.338084998
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.916677589917651,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 55.166666666666664,
+        "riders_served": 488858.36038908304,
+        "cost": {
+          "wait": 7826089.235101912,
+          "tunnel": 166657.69707651075,
+          "hold": 4814.555786582778,
+          "crowd": 0.0,
+          "short_turn": 1858.3990144241475,
+          "skip": 7606.449146873935,
+          "reroute": 0.0,
+          "yard": 1200.0,
+          "total": 8008226.336126311
+        },
+        "actions": {
+          "HOLD_IN_STATION": 837,
+          "RUN_EXPRESS": 5,
+          "RUN_LOCAL": 1,
+          "SKIP_STOP": 27,
+          "SHORT_TURN_RELAY": 2,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 3
+        },
+        "decisions": 2653,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.706094160983034
+      },
+      "seconds": 2.771202958014328
+    },
+    {
+      "seed": 1000029,
+      "profile": "midday",
+      "n_disruptions": 2,
+      "demand_scale": 0.9923,
+      "normal": {
+        "avg_wait_min": 6.262168883602603,
+        "overcrowded_platform_min": 21.5,
+        "tunnel_stuck_train_min": 1871.6666666666665,
+        "riders_served": 299516.65816828114,
+        "cost": {
+          "wait": 32765656.06769872,
+          "tunnel": 24161274.465290863,
+          "hold": 4266.56176844522,
+          "crowd": 8240.18422934673,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 56939437.278987385
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 5.197848124430583,
+        "overcrowded_platform_min": 38.5,
+        "tunnel_stuck_train_min": 1506.5,
+        "riders_served": 300601.12336795777,
+        "cost": {
+          "wait": 21653035.164275188,
+          "tunnel": 21074767.43430012,
+          "hold": 13653.245381063542,
+          "crowd": 85537.21333280948,
+          "short_turn": 47616.79514846392,
+          "skip": 10589.924046946688,
+          "reroute": 0.0,
+          "yard": 4400.0,
+          "total": 42889599.7764846
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1613,
+          "RUN_EXPRESS": 5,
+          "RUN_LOCAL": 9,
+          "SKIP_STOP": 60,
+          "SHORT_TURN_RELAY": 13,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 11
+        },
+        "decisions": 2231,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.614770205304724
+      },
+      "seconds": 2.7028523340122774
+    },
+    {
+      "seed": 1000030,
+      "profile": "pm_rush",
+      "n_disruptions": 2,
+      "demand_scale": 1.1191,
+      "normal": {
+        "avg_wait_min": 2.724407563278387,
+        "overcrowded_platform_min": 5.666666666666666,
+        "tunnel_stuck_train_min": 152.66666666666666,
+        "riders_served": 632658.0755178691,
+        "cost": {
+          "wait": 7941870.352911631,
+          "tunnel": 447130.90180008276,
+          "hold": 269.2567312502481,
+          "crowd": 3485.6553480952507,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 8392756.16679107
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.6849851498630812,
+        "overcrowded_platform_min": 6.0,
+        "tunnel_stuck_train_min": 187.5,
+        "riders_served": 630177.9294165011,
+        "cost": {
+          "wait": 7516793.829278386,
+          "tunnel": 343459.54112689395,
+          "hold": 9711.64303155364,
+          "crowd": 3816.0328911281936,
+          "short_turn": 6765.334576695193,
+          "skip": 16583.593269440724,
+          "reroute": 0.0,
+          "yard": 4000.0,
+          "total": 7901129.9741741
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1349,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 17,
+          "SKIP_STOP": 53,
+          "SHORT_TURN_RELAY": 2,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 10
+        },
+        "decisions": 2935,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.360669023926673
+      },
+      "seconds": 2.806250166031532
+    },
+    {
+      "seed": 1000031,
+      "profile": "late_night",
+      "n_disruptions": 1,
+      "demand_scale": 1.1103,
+      "normal": {
+        "avg_wait_min": 8.229689691325046,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 0.0,
+        "riders_served": 25346.63927975571,
+        "cost": {
+          "wait": 7668026.327059563,
+          "tunnel": 1399.6555009717931,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 7669425.982560536
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 8.202370404821277,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 0.0,
+        "riders_served": 25385.61924297683,
+        "cost": {
+          "wait": 7564333.28154247,
+          "tunnel": 1239.9962833632571,
+          "hold": 330.6939152803075,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 800.0,
+          "total": 7566703.971741119
+        },
+        "actions": {
+          "HOLD_IN_STATION": 84,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 2
+        },
+        "decisions": 231,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 8.217817385724105
+      },
+      "seconds": 1.6605637919856235
+    },
+    {
+      "seed": 1000032,
+      "profile": "am_peak",
+      "n_disruptions": 2,
+      "demand_scale": 0.9901,
+      "normal": {
+        "avg_wait_min": 3.545737558350567,
+        "overcrowded_platform_min": 32.166666666666664,
+        "tunnel_stuck_train_min": 329.66666666666663,
+        "riders_served": 494579.2113215279,
+        "cost": {
+          "wait": 12884551.659156084,
+          "tunnel": 2245886.843638118,
+          "hold": 76.54978605591529,
+          "crowd": 101577.14135560105,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 15232092.19393587
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.9972405212467828,
+        "overcrowded_platform_min": 14.833333333333332,
+        "tunnel_stuck_train_min": 99.83333333333333,
+        "riders_served": 498624.4276425123,
+        "cost": {
+          "wait": 8534891.99529123,
+          "tunnel": 189350.62235688136,
+          "hold": 6808.692293915106,
+          "crowd": 9553.01365785145,
+          "short_turn": 28117.672539715437,
+          "skip": 7198.248930264001,
+          "reroute": 0.0,
+          "yard": 1600.0,
+          "total": 8777520.245069863
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1170,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 4,
+          "SKIP_STOP": 54,
+          "SHORT_TURN_RELAY": 9,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 4
+        },
+        "decisions": 3249,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.8254979612394293
+      },
+      "seconds": 2.7026301250443794
+    },
+    {
+      "seed": 1000033,
+      "profile": "midday",
+      "n_disruptions": 2,
+      "demand_scale": 0.9746,
+      "normal": {
+        "avg_wait_min": 2.8998786212017156,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 181.16666666666666,
+        "riders_served": 313083.21654659504,
+        "cost": {
+          "wait": 5136007.3947287705,
+          "tunnel": 620465.9751246317,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 5756473.369853403
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.7465238683907502,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 229.5,
+        "riders_served": 311985.08223746245,
+        "cost": {
+          "wait": 4455115.942783078,
+          "tunnel": 429094.1759789546,
+          "hold": 4879.05122159325,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 9778.194112523333,
+          "reroute": 0.0,
+          "yard": 1200.0,
+          "total": 4900067.364096147
+        },
+        "actions": {
+          "HOLD_IN_STATION": 935,
+          "RUN_EXPRESS": 1,
+          "RUN_LOCAL": 24,
+          "SKIP_STOP": 34,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 3
+        },
+        "decisions": 1750,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.60969387690414
+      },
+      "seconds": 2.5106623329920694
+    },
+    {
+      "seed": 1000034,
+      "profile": "pm_rush",
+      "n_disruptions": 3,
+      "demand_scale": 1.0372,
+      "normal": {
+        "avg_wait_min": 2.9684505134156796,
+        "overcrowded_platform_min": 0.5,
+        "tunnel_stuck_train_min": 322.16666666666663,
+        "riders_served": 586554.4514727733,
+        "cost": {
+          "wait": 9095755.266635515,
+          "tunnel": 1541703.537420933,
+          "hold": 0.0,
+          "crowd": 0.41898605723860505,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 10637459.223042497
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.894085623191336,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 371.8333333333333,
+        "riders_served": 583825.4111864243,
+        "cost": {
+          "wait": 8482283.24978968,
+          "tunnel": 908715.1676349253,
+          "hold": 13428.23832887508,
+          "crowd": 0.0,
+          "short_turn": 2454.716470719745,
+          "skip": 18932.801604278793,
+          "reroute": 0.0,
+          "yard": 4800.0,
+          "total": 9430614.173828462
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1823,
+          "RUN_EXPRESS": 6,
+          "RUN_LOCAL": 14,
+          "SKIP_STOP": 76,
+          "SHORT_TURN_RELAY": 3,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 12
+        },
+        "decisions": 3413,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.3752393672688212
+      },
+      "seconds": 2.7772428749594837
+    },
+    {
+      "seed": 1000035,
+      "profile": "late_night",
+      "n_disruptions": 3,
+      "demand_scale": 1.0679,
+      "normal": {
+        "avg_wait_min": 8.693243831098503,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 6.333333333333333,
+        "riders_served": 24313.96221068723,
+        "cost": {
+          "wait": 8326283.224331222,
+          "tunnel": 3139.5732443878173,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 8329422.797575609
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 8.692148961633109,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 1.3333333333333333,
+        "riders_served": 24306.724193621238,
+        "cost": {
+          "wait": 8336849.320810923,
+          "tunnel": 1881.6038958278693,
+          "hold": 909.5659404636987,
+          "crowd": 0.0,
+          "short_turn": 712.9758660161283,
+          "skip": 76.28788071881549,
+          "reroute": 0.0,
+          "yard": 1200.0,
+          "total": 8341629.754393948
+        },
+        "actions": {
+          "HOLD_IN_STATION": 242,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 4,
+          "SHORT_TURN_RELAY": 3,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 3
+        },
+        "decisions": 670,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 8.633311260397313
+      },
+      "seconds": 1.6608451250358485
+    },
+    {
+      "seed": 1000036,
+      "profile": "am_peak",
+      "n_disruptions": 1,
+      "demand_scale": 1.085,
+      "normal": {
+        "avg_wait_min": 5.62660107090454,
+        "overcrowded_platform_min": 130.33333333333331,
+        "tunnel_stuck_train_min": 836.1666666666666,
+        "riders_served": 522324.6726208257,
+        "cost": {
+          "wait": 39951643.92764039,
+          "tunnel": 15299205.702225983,
+          "hold": 0.0,
+          "crowd": 44692.43678135769,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 55295542.06664776
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 3.944776637702987,
+        "overcrowded_platform_min": 58.666666666666664,
+        "tunnel_stuck_train_min": 138.5,
+        "riders_served": 539724.6926936253,
+        "cost": {
+          "wait": 17540125.113482654,
+          "tunnel": 278880.144019492,
+          "hold": 8817.869807094528,
+          "crowd": 23105.14371900919,
+          "short_turn": 0.0,
+          "skip": 24999.537237349894,
+          "reroute": 610.7209264109526,
+          "yard": 4800.0,
+          "total": 17881338.529192023
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1300,
+          "RUN_EXPRESS": 38,
+          "RUN_LOCAL": 7,
+          "SKIP_STOP": 70,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 1,
+          "DISPATCH_YARD_GAP_TRAIN": 12
+        },
+        "decisions": 2436,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.647359281251848
+      },
+      "seconds": 2.711591415980365
+    },
+    {
+      "seed": 1000037,
+      "profile": "midday",
+      "n_disruptions": 1,
+      "demand_scale": 0.9335,
+      "normal": {
+        "avg_wait_min": 2.6539940357159932,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 13.5,
+        "riders_served": 300178.4330107833,
+        "cost": {
+          "wait": 3924937.688045834,
+          "tunnel": 62193.592586460574,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 3987131.280632296
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.63218844068667,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 22.5,
+        "riders_served": 300065.911446292,
+        "cost": {
+          "wait": 3836357.801935005,
+          "tunnel": 64183.25927376326,
+          "hold": 2655.5437878882976,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 2718.8672780288,
+          "reroute": 0.0,
+          "yard": 400.0,
+          "total": 3906315.4722746825
+        },
+        "actions": {
+          "HOLD_IN_STATION": 516,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 29,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 1
+        },
+        "decisions": 1543,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.6416762400360603
+      },
+      "seconds": 2.451531915983651
+    },
+    {
+      "seed": 1000038,
+      "profile": "pm_rush",
+      "n_disruptions": 1,
+      "demand_scale": 0.9126,
+      "normal": {
+        "avg_wait_min": 4.407197202222648,
+        "overcrowded_platform_min": 35.0,
+        "tunnel_stuck_train_min": 187.5,
+        "riders_served": 511825.23277833627,
+        "cost": {
+          "wait": 19490292.79833959,
+          "tunnel": 1942577.0901545982,
+          "hold": 0.0,
+          "crowd": 13093.303424193278,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 21445963.191918414
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.874753609548102,
+        "overcrowded_platform_min": 15.666666666666666,
+        "tunnel_stuck_train_min": 82.83333333333333,
+        "riders_served": 515348.94597263465,
+        "cost": {
+          "wait": 7566707.040500624,
+          "tunnel": 561276.8116810032,
+          "hold": 7299.371375241029,
+          "crowd": 1521.7242475679523,
+          "short_turn": 5164.705590802757,
+          "skip": 7695.780780953641,
+          "reroute": 0.0,
+          "yard": 1600.0,
+          "total": 8151265.434176191
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1043,
+          "RUN_EXPRESS": 10,
+          "RUN_LOCAL": 2,
+          "SKIP_STOP": 22,
+          "SHORT_TURN_RELAY": 3,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 4
+        },
+        "decisions": 2151,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.3473945375066823
+      },
+      "seconds": 2.6703114999691024
+    },
+    {
+      "seed": 1000039,
+      "profile": "late_night",
+      "n_disruptions": 1,
+      "demand_scale": 0.9309,
+      "normal": {
+        "avg_wait_min": 8.34720970584158,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 0.0,
+        "riders_served": 21135.80416053561,
+        "cost": {
+          "wait": 6640848.498766218,
+          "tunnel": 1729.5008028170755,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 6642577.999569038
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 8.32807164662351,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 0.0,
+        "riders_served": 21164.63906056243,
+        "cost": {
+          "wait": 6581120.501646938,
+          "tunnel": 1842.5686471924234,
+          "hold": 300.09561877699275,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 8.314596813987476,
+          "reroute": 0.0,
+          "yard": 400.0,
+          "total": 6583671.480509715
+        },
+        "actions": {
+          "HOLD_IN_STATION": 75,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 1,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 1
+        },
+        "decisions": 131,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 8.32296872525176
+      },
+      "seconds": 1.5808660420007072
+    },
+    {
+      "seed": 1000040,
+      "profile": "am_peak",
+      "n_disruptions": 1,
+      "demand_scale": 1.0709,
+      "normal": {
+        "avg_wait_min": 2.6835588350863118,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 35.166666666666664,
+        "riders_served": 540650.1262098529,
+        "cost": {
+          "wait": 7021951.472239729,
+          "tunnel": 141995.93818600918,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 7163947.410425731
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.655020246989965,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 55.5,
+        "riders_served": 540707.6577799992,
+        "cost": {
+          "wait": 6783342.437200662,
+          "tunnel": 156224.29595980304,
+          "hold": 4021.663124446434,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 4040.1360175163113,
+          "reroute": 550.8952595726578,
+          "yard": 1600.0,
+          "total": 6949779.427562002
+        },
+        "actions": {
+          "HOLD_IN_STATION": 660,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 2,
+          "SKIP_STOP": 23,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 1,
+          "DISPATCH_YARD_GAP_TRAIN": 4
+        },
+        "decisions": 2131,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.6722130208899837
+      },
+      "seconds": 2.592349542013835
+    },
+    {
+      "seed": 1000041,
+      "profile": "midday",
+      "n_disruptions": 2,
+      "demand_scale": 0.9327,
+      "normal": {
+        "avg_wait_min": 7.386536595014931,
+        "overcrowded_platform_min": 99.66666666666666,
+        "tunnel_stuck_train_min": 850.1666666666666,
+        "riders_served": 278704.6557388068,
+        "cost": {
+          "wait": 38780196.06873485,
+          "tunnel": 8522682.37936975,
+          "hold": 0.0,
+          "crowd": 38549.6253217244,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 47341428.073426366
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 8.545997759355924,
+        "overcrowded_platform_min": 135.33333333333331,
+        "tunnel_stuck_train_min": 1743.6666666666665,
+        "riders_served": 269385.7696807171,
+        "cost": {
+          "wait": 60229035.39186816,
+          "tunnel": 23722507.27569551,
+          "hold": 8722.334073752158,
+          "crowd": 48272.4438958408,
+          "short_turn": 1884.5396304412327,
+          "skip": 15866.902574690577,
+          "reroute": 4550.37890424804,
+          "yard": 2000.0,
+          "total": 84032839.2666426
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1547,
+          "RUN_EXPRESS": 21,
+          "RUN_LOCAL": 27,
+          "SKIP_STOP": 122,
+          "SHORT_TURN_RELAY": 2,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 10,
+          "DISPATCH_YARD_GAP_TRAIN": 5
+        },
+        "decisions": 2276,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.587846778387851
+      },
+      "seconds": 2.4919409590074793
+    },
+    {
+      "seed": 1000042,
+      "profile": "pm_rush",
+      "n_disruptions": 1,
+      "demand_scale": 1.1102,
+      "normal": {
+        "avg_wait_min": 4.235899897504896,
+        "overcrowded_platform_min": 69.16666666666666,
+        "tunnel_stuck_train_min": 720.8333333333333,
+        "riders_served": 621373.814196246,
+        "cost": {
+          "wait": 21799990.38562741,
+          "tunnel": 7303857.4222878,
+          "hold": 0.0,
+          "crowd": 33345.01639573163,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 29137192.824310955
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 3.8840262305631743,
+        "overcrowded_platform_min": 63.5,
+        "tunnel_stuck_train_min": 890.1666666666666,
+        "riders_served": 615850.4955836703,
+        "cost": {
+          "wait": 18342078.503698662,
+          "tunnel": 4991596.800732314,
+          "hold": 21591.613535333647,
+          "crowd": 37724.94668518176,
+          "short_turn": 17552.881390731432,
+          "skip": 27360.575200081777,
+          "reroute": 1470.6259320900647,
+          "yard": 5200.0,
+          "total": 23444575.947174378
+        },
+        "actions": {
+          "HOLD_IN_STATION": 2936,
+          "RUN_EXPRESS": 13,
+          "RUN_LOCAL": 28,
+          "SKIP_STOP": 65,
+          "SHORT_TURN_RELAY": 5,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 3,
+          "DISPATCH_YARD_GAP_TRAIN": 13
+        },
+        "decisions": 4229,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.3635155863809323
+      },
+      "seconds": 2.6022966660093516
+    },
+    {
+      "seed": 1000043,
+      "profile": "late_night",
+      "n_disruptions": 2,
+      "demand_scale": 0.9727,
+      "normal": {
+        "avg_wait_min": 7.887418863779154,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 1.0,
+        "riders_served": 22292.20786056986,
+        "cost": {
+          "wait": 6116363.415545753,
+          "tunnel": 2398.437067320843,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 6118761.852613074
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 7.881527365870566,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 4.0,
+        "riders_served": 22282.782277691967,
+        "cost": {
+          "wait": 6069961.885272941,
+          "tunnel": 2947.4864718680356,
+          "hold": 467.80502828019763,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 6073377.176773089
+        },
+        "actions": {
+          "HOLD_IN_STATION": 124,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 227,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 7.854494414374865
+      },
+      "seconds": 1.5312321669771336
+    },
+    {
+      "seed": 1000044,
+      "profile": "am_peak",
+      "n_disruptions": 3,
+      "demand_scale": 1.0884,
+      "normal": {
+        "avg_wait_min": 3.6975290396008544,
+        "overcrowded_platform_min": 6.666666666666666,
+        "tunnel_stuck_train_min": 797.6666666666666,
+        "riders_served": 545692.6770171348,
+        "cost": {
+          "wait": 15240235.656354712,
+          "tunnel": 6952513.13252252,
+          "hold": 0.0,
+          "crowd": 1130.5660812267242,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 22193879.354958452
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 3.021755562283769,
+        "overcrowded_platform_min": 9.666666666666666,
+        "tunnel_stuck_train_min": 360.0,
+        "riders_served": 546220.1926537197,
+        "cost": {
+          "wait": 9356847.336986296,
+          "tunnel": 2154733.9005771787,
+          "hold": 11534.603724727021,
+          "crowd": 35056.46067161029,
+          "short_turn": 38570.75255856596,
+          "skip": 27103.702670191127,
+          "reroute": 718.6132289613066,
+          "yard": 5200.0,
+          "total": 11629765.370417546
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1718,
+          "RUN_EXPRESS": 7,
+          "RUN_LOCAL": 34,
+          "SKIP_STOP": 105,
+          "SHORT_TURN_RELAY": 11,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 1,
+          "DISPATCH_YARD_GAP_TRAIN": 13
+        },
+        "decisions": 3460,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.6505920832263645
+      },
+      "seconds": 2.517316750017926
+    },
+    {
+      "seed": 1000045,
+      "profile": "midday",
+      "n_disruptions": 2,
+      "demand_scale": 0.9298,
+      "normal": {
+        "avg_wait_min": 5.2720703528945165,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 672.3333333333333,
+        "riders_served": 294208.6538252158,
+        "cost": {
+          "wait": 18776572.456456896,
+          "tunnel": 3938783.1215744843,
+          "hold": 466.6946295276322,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 22715822.272660896
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 4.680468078644061,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 488.0,
+        "riders_served": 294877.21260107204,
+        "cost": {
+          "wait": 14398092.748133626,
+          "tunnel": 3517815.1989632593,
+          "hold": 5540.192399218832,
+          "crowd": 0.0,
+          "short_turn": 6932.4486339102095,
+          "skip": 4582.2845197349225,
+          "reroute": 0.0,
+          "yard": 400.0,
+          "total": 17933362.87264974
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1080,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 1,
+          "SKIP_STOP": 67,
+          "SHORT_TURN_RELAY": 7,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 1
+        },
+        "decisions": 1625,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.5947660225237485
+      },
+      "seconds": 2.3522099170368165
+    },
+    {
+      "seed": 1000046,
+      "profile": "pm_rush",
+      "n_disruptions": 2,
+      "demand_scale": 1.1451,
+      "normal": {
+        "avg_wait_min": 5.014656681689377,
+        "overcrowded_platform_min": 190.66666666666666,
+        "tunnel_stuck_train_min": 818.1666666666666,
+        "riders_served": 635766.031288743,
+        "cost": {
+          "wait": 34055764.52865393,
+          "tunnel": 6948957.108728379,
+          "hold": 1870.7767878370191,
+          "crowd": 77334.55220997144,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 41083926.96638012
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 4.500425609516418,
+        "overcrowded_platform_min": 213.16666666666666,
+        "tunnel_stuck_train_min": 650.5,
+        "riders_served": 636408.8660443746,
+        "cost": {
+          "wait": 27311841.22147997,
+          "tunnel": 3929888.700158101,
+          "hold": 20459.93437276059,
+          "crowd": 301071.2570119347,
+          "short_turn": 34219.58914733116,
+          "skip": 40440.69138229707,
+          "reroute": 2022.6281815153288,
+          "yard": 4000.0,
+          "total": 31643944.021733902
+        },
+        "actions": {
+          "HOLD_IN_STATION": 2280,
+          "RUN_EXPRESS": 12,
+          "RUN_LOCAL": 24,
+          "SKIP_STOP": 107,
+          "SHORT_TURN_RELAY": 9,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 4,
+          "DISPATCH_YARD_GAP_TRAIN": 10
+        },
+        "decisions": 3877,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.3724630263483375
+      },
+      "seconds": 2.430574833007995
+    },
+    {
+      "seed": 1000047,
+      "profile": "late_night",
+      "n_disruptions": 1,
+      "demand_scale": 0.9275,
+      "normal": {
+        "avg_wait_min": 7.998028116308098,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 11.833333333333332,
+        "riders_served": 21032.687967098453,
+        "cost": {
+          "wait": 5986520.015287977,
+          "tunnel": 8957.542501266928,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 5995477.557789244
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 7.995600739244982,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 4.666666666666666,
+        "riders_served": 21055.304288208652,
+        "cost": {
+          "wait": 5968569.20264135,
+          "tunnel": 3423.0783573056065,
+          "hold": 557.6409871467498,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 26.567153388950054,
+          "reroute": 0.0,
+          "yard": 400.0,
+          "total": 5972976.489139192
+        },
+        "actions": {
+          "HOLD_IN_STATION": 153,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 1,
+          "SKIP_STOP": 1,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 1
+        },
+        "decisions": 467,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 7.99934261975779
+      },
+      "seconds": 1.5594760830281302
+    },
+    {
+      "seed": 1000048,
+      "profile": "am_peak",
+      "n_disruptions": 3,
+      "demand_scale": 0.9932,
+      "normal": {
+        "avg_wait_min": 2.7647644665688507,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 155.83333333333331,
+        "riders_served": 501445.82346386166,
+        "cost": {
+          "wait": 6970749.22124263,
+          "tunnel": 591489.1612513332,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 7562238.382493965
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.794260408807425,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 70.83333333333333,
+        "riders_served": 500814.0880453107,
+        "cost": {
+          "wait": 7083040.958465309,
+          "tunnel": 171393.4139373994,
+          "hold": 6439.389139559131,
+          "crowd": 0.0,
+          "short_turn": 4756.529297948271,
+          "skip": 7953.089857914528,
+          "reroute": 0.0,
+          "yard": 1600.0,
+          "total": 7275183.380698129
+        },
+        "actions": {
+          "HOLD_IN_STATION": 1095,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 12,
+          "SKIP_STOP": 47,
+          "SHORT_TURN_RELAY": 2,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 4
+        },
+        "decisions": 2959,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.7099343208844044
+      },
+      "seconds": 2.2584236669936217
+    },
+    {
+      "seed": 1000049,
+      "profile": "midday",
+      "n_disruptions": 2,
+      "demand_scale": 1.0506,
+      "normal": {
+        "avg_wait_min": 2.6998026741694248,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 113.33333333333333,
+        "riders_served": 337731.04158551845,
+        "cost": {
+          "wait": 4607201.201311683,
+          "tunnel": 284349.0123205027,
+          "hold": 0.0,
+          "crowd": 0.0,
+          "short_turn": 0.0,
+          "skip": 0.0,
+          "reroute": 0.0,
+          "yard": 0.0,
+          "total": 4891550.213632187
+        },
+        "actions": {
+          "HOLD_IN_STATION": 0,
+          "RUN_EXPRESS": 0,
+          "RUN_LOCAL": 0,
+          "SKIP_STOP": 0,
+          "SHORT_TURN_RELAY": 0,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 0
+        },
+        "decisions": 0,
+        "ticks": 540
+      },
+      "ai": {
+        "avg_wait_min": 2.6460439048650852,
+        "overcrowded_platform_min": 0.0,
+        "tunnel_stuck_train_min": 65.33333333333333,
+        "riders_served": 337375.43690276943,
+        "cost": {
+          "wait": 4369959.023963417,
+          "tunnel": 153239.9923659426,
+          "hold": 2759.3061810142117,
+          "crowd": 0.0,
+          "short_turn": 2828.09527379497,
+          "skip": 4636.349452016883,
+          "reroute": 0.0,
+          "yard": 1600.0,
+          "total": 4535022.767236178
+        },
+        "actions": {
+          "HOLD_IN_STATION": 513,
+          "RUN_EXPRESS": 1,
+          "RUN_LOCAL": 11,
+          "SKIP_STOP": 24,
+          "SHORT_TURN_RELAY": 2,
+          "REROUTE_VIA_COMPATIBLE_TRUNK": 0,
+          "DISPATCH_YARD_GAP_TRAIN": 4
+        },
+        "decisions": 1096,
+        "ticks": 540
+      },
+      "calm": {
+        "avg_wait_min": 2.5903035939481467
+      },
+      "seconds": 2.1194390829768963
+    }
+  ]
+}

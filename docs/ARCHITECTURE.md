@@ -638,6 +638,8 @@ The AI must beat Normal on mean total cost across the 50 eval seeds, with a seed
 
 *Changed with the user on 2026-11-22.* This replaces "avg wait by ≥ 10 %". Disruptions add only ~21 % to citywide avg wait on the eval seeds (4.92 vs 3.90 min), and less than 10 % on 20 of the 50 seeds, so a citywide 10 % cut was unreachable there for any dispatcher. The citywide % change is still reported for information.
 
+*Shipping exception, 2026-11-22.* The product owner chose to ship the per-train / citywide-reward model (`backend/models/nyc_subway_rcc_ppo.onnx`) while the bar is not fully met. It passes cost, win rate (86 %) and excess-wait removal (24 %), but tunnel-stuck falls only 27.4 % against the 30 % target. The model card's `ship_decision` records this.
+
 ### 4.9 ONNX export — CONTRACT (`rl/export_onnx.py`)
 
 - Export the actor only: `obs → features → mlp_extractor.forward_actor → action_net` gives `logits`.
