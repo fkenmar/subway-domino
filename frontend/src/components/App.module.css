@@ -1,0 +1,234 @@
+/*
+ * Page layout: a full-bleed canvas map with the HUD on a pointer-transparent grid.
+ *
+ * Desktop (≥ 1100 px)          Tablet / phone (< 1100 px)
+ * ┌──────── header ────────┐    ┌──── header ────┐
+ * │ presets       │  side  │    │    presets     │
+ * │ map area      │ (HUD,  │    │    map area    │
+ * │ (banners,     │ disr., │    │    side (HUD)  │
+ * │  callouts)    │ log)   │    │    dock        │
+ * │ dock          │        │    └────────────────┘
+ * └───────────────┴────────┘
+ */
+
+.app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--map-bg);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "header header"
+    "presets side"
+    "map side"
+    "dock side";
+  gap: 12px 20px;
+  padding: calc(14px + var(--safe-top)) 20px calc(16px + var(--safe-bottom));
+  pointer-events: none;
+}
+
+/* Scrims: darken the map behind the header and the dock so the HUD stays legible. */
+.overlay::before,
+.overlay::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.overlay::before {
+  top: 0;
+  height: 200px;
+  background: linear-gradient(
+    to bottom,
+    rgba(7, 11, 17, 0.94) 0%,
+    rgba(7, 11, 17, 0.82) 38%,
+    rgba(7, 11, 17, 0.35) 72%,
+    rgba(7, 11, 17, 0) 100%
+  );
+}
+
+.overlay::after {
+  bottom: 0;
+  height: 150px;
+  background: linear-gradient(to top, rgba(7, 11, 17, 0.88) 0%, rgba(7, 11, 17, 0.5) 50%, rgba(7, 11, 17, 0) 100%);
+}
+
+.header {
+  grid-area: header;
+  min-width: 0;
+}
+
+.presets {
+  grid-area: presets;
+  align-self: start;
+  min-width: 0;
+}
+
+.mapArea {
+  grid-area: map;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.side {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.sideHud,
+.sideDisruptions {
+  flex: none;
+  min-width: 0;
+}
+
+.sideDisruptions:empty {
+  display: none;
+}
+
+/* The log takes its content height and scrolls once it would overflow the column. */
+.sideFeed {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.dock {
+  grid-area: dock;
+  justify-self: center;
+  display: grid;
+  grid-template-columns: auto auto auto;
+  grid-template-areas: "speed toggle more";
+  align-items: center;
+  gap: 10px;
+  padding: 7px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  pointer-events: auto;
+}
+
+.dockSpeed {
+  grid-area: speed;
+  display: flex;
+}
+
+.dockToggle {
+  grid-area: toggle;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.dockMore {
+  grid-area: more;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Laptop widths: a narrower right column (the controls go icon-only, see Controls.module.css). */
+@media (max-width: 1319px) and (min-width: 1100px) {
+  .overlay {
+    grid-template-columns: minmax(0, 1fr) 336px;
+  }
+}
+
+/* Tablets and phones: HUD strip and a two-row dock along the bottom. */
+@media (max-width: 1099px) {
+  .overlay {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "header"
+      "presets"
+      "map"
+      "side"
+      "dock";
+    gap: 10px;
+    padding: calc(12px + var(--safe-top)) 14px calc(12px + var(--safe-bottom));
+  }
+
+  .overlay::before {
+    height: 230px;
+  }
+
+  .overlay::after {
+    height: 320px;
+  }
+
+  .side {
+    max-height: 56vh;
+    gap: 8px;
+  }
+
+  /* Bottom-up order: the HUD strip sits right above the dock. */
+  .sideFeed {
+    order: 1;
+    flex: 0 1 auto;
+  }
+
+  .sideDisruptions {
+    order: 2;
+  }
+
+  .sideHud {
+    order: 3;
+  }
+
+  .dock {
+    justify-self: stretch;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "toggle toggle"
+      "speed more";
+    gap: 8px;
+    padding: 8px;
+    border-radius: 22px;
+  }
+
+  .dockToggle > * {
+    width: 100%;
+  }
+}
+
+@media (max-width: 699px) {
+  .overlay {
+    padding: calc(10px + var(--safe-top)) 10px calc(10px + var(--safe-bottom));
+    gap: 8px;
+  }
+
+  .dock {
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .dockMore {
+    gap: 6px;
+  }
+}

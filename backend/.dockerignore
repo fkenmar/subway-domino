@@ -1,0 +1,17 @@
+# Build context for backend/Dockerfile: only sim/, app/, data/network*.json, the ONNX model and
+# requirements-prod.txt are used by the image (ARCHITECTURE §7).
+.venv
+rl
+tests
+scripts
+data/raw
+runs
+__pycache__
+**/__pycache__
+**/*.pyc
+.pytest_cache
+**/.DS_Store
+.git
+# models/: only the shipped policy (model card and eval reports stay out of the image)
+models/*
+!models/nyc_subway_rcc_ppo.onnx

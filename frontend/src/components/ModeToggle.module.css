@@ -1,0 +1,197 @@
+.toggle {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 400px;
+  max-width: 100%;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--panel-solid);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-lg);
+  isolation: isolate;
+}
+
+.thumb {
+  position: absolute;
+  z-index: -1;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #2a3445, #1d2533);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: transform 260ms cubic-bezier(0.2, 0.9, 0.25, 1), background 260ms ease, box-shadow 260ms ease;
+}
+
+.toggle[data-mode="ai"] .thumb {
+  transform: translateX(100%);
+  background: linear-gradient(180deg, #46c2f7, #1f9fe0);
+  box-shadow:
+    0 0 24px var(--ai-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 100%;
+  min-height: 54px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 200ms ease;
+}
+
+.option[aria-checked="true"] {
+  color: var(--text);
+}
+
+.toggle[data-mode="ai"] .option[data-ai="true"] {
+  color: #04131d;
+}
+
+.option[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.name {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+
+.sub {
+  font-size: 11px;
+  opacity: 0.78;
+  white-space: nowrap;
+}
+
+.spark {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ai);
+  box-shadow: 0 0 10px var(--ai);
+}
+
+.toggle[data-mode="ai"] .spark {
+  background: #04131d;
+  box-shadow: none;
+}
+
+.aiWrap {
+  position: relative;
+  display: flex;
+}
+
+.tip {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  width: 280px;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  background: var(--panel-solid);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.4;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 4px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.aiWrap:hover .tip,
+.aiWrap:focus-within .tip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* Pulses after a disruption starts while Normal Schedule is running. */
+.toggle[data-pulse="true"] {
+  animation: nudge 1.8s ease-in-out infinite;
+}
+
+.toggle[data-pulse="true"] .option[data-ai="true"] {
+  color: var(--ai);
+}
+
+.toggle[data-pulse="true"]::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  border: 2px solid var(--ai);
+  opacity: 0;
+  animation: ring 1.8s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes ring {
+  0% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.12, 1.45);
+  }
+}
+
+@keyframes nudge {
+  0%,
+  100% {
+    box-shadow: var(--shadow-lg), 0 0 0 0 rgba(90, 200, 250, 0);
+  }
+  50% {
+    box-shadow: var(--shadow-lg), 0 0 28px 2px var(--ai-glow);
+  }
+}
+
+@media (max-width: 1319px) and (min-width: 1100px) {
+  .toggle {
+    width: 352px;
+  }
+}
+
+@media (max-width: 1099px) {
+  .toggle {
+    width: 100%;
+  }
+}
+
+@media (max-width: 699px) {
+  .option {
+    min-height: 48px;
+  }
+
+  .name {
+    font-size: 14px;
+  }
+
+  .tip {
+    left: auto;
+    right: 0;
+    transform: translate(0, 4px);
+  }
+
+  .aiWrap:hover .tip,
+  .aiWrap:focus-within .tip {
+    transform: translate(0, 0);
+  }
+}

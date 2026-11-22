@@ -1,0 +1,15 @@
+# Subway Domino backend: tool configuration only (nothing is pip-installed; see ARCHITECTURE §1).
+# All Python commands run from backend/ with .venv/bin/python.
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "slow: long-running tests (performance targets, full data builds)",
+    "train: tests that train a policy (requires requirements-train.txt)",
+    "model: tests that require the shipped ONNX model in models/",
+    "network: tests that require internet access",
+]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"

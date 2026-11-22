@@ -1,0 +1,47 @@
+.bullet,
+.diamond {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  user-select: none;
+}
+
+.bullet {
+  border-radius: 50%;
+}
+
+.diamond {
+  border-radius: 2px;
+  transform: rotate(45deg) scale(0.86);
+}
+
+.diamond .text {
+  transform: rotate(-45deg) scale(1.16);
+}
+
+.text {
+  display: block;
+  font-family: var(--font);
+}
+
+.row {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.subtitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.subtitleText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

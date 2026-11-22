@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+backend/.venv/
+.venv/
+.pytest_cache/
+# Raw downloads (rebuilt by backend/scripts/build_nyc_network.py)
+backend/data/raw/
+# Training outputs
+backend/runs/
+backend/checkpoints/
+*.zip.tmp
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts
+*.tsbuildinfo
+# Env
+.env
+.env.local
+.DS_Store
+# Playwright / visual QA outputs (regenerated; README uses curated copies in docs/images/)
+frontend/test-results/
+frontend/playwright-report/
+frontend/test/screenshots/
+# Repo zip for Colab upload (backend/rl/make_repo_zip.py)
+dist/

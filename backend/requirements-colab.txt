@@ -1,0 +1,10 @@
+# Google Colab training (ARCHITECTURE §4.10). Use Colab's preinstalled torch: never reinstall or
+# pin it here. The notebook installs this file with a constraint that pins the installed torch,
+# so no dependency can pull in another build. numpy also comes from Colab; backend/ needs numpy >= 2.
+stable-baselines3==2.9.2
+sb3-contrib==2.9.2
+gymnasium==1.4.0
+tensorboard==2.21.0
+onnx==1.23.2
+onnxruntime==1.32.0
+onnxscript==0.7.2

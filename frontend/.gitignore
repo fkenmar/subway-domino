@@ -1,0 +1,7 @@
+# Playwright artefacts (final screenshots live in test/screenshots/ and are committed)
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+# Local env
+.env*.local

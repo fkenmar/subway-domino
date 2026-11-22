@@ -1,0 +1,90 @@
+{
+  "description": "Decoded values of frame_v1.bin (ARCHITECTURE §5.3 binary frame, kind = 1, little-endian).",
+  "size_bytes": 104,
+  "seq": 4000000123,
+  "clock_s": 30123.25,
+  "mode": "ai",
+  "speed": "5x",
+  "flags": 1,
+  "twin_active": true,
+  "n_trains": 6,
+  "n_stations": 13,
+  "train_id": [
+    0,
+    3,
+    17,
+    255,
+    256,
+    699
+  ],
+  "edge": [
+    0,
+    1,
+    4660,
+    1913,
+    300,
+    65535
+  ],
+  "frac": [
+    0,
+    65535,
+    32768,
+    1,
+    255,
+    65280
+  ],
+  "route": [
+    0,
+    1,
+    27,
+    9,
+    14,
+    255
+  ],
+  "status": [
+    0,
+    1,
+    10,
+    5,
+    112,
+    255
+  ],
+  "load": [
+    0,
+    50,
+    100,
+    120,
+    254,
+    255
+  ],
+  "station_crowd": [
+    0,
+    10,
+    79,
+    80,
+    100,
+    150,
+    254,
+    255,
+    0,
+    33,
+    66,
+    99,
+    1
+  ],
+  "station_wait": [
+    0,
+    4,
+    8,
+    20,
+    40,
+    60,
+    120,
+    255,
+    1,
+    2,
+    3,
+    250,
+    0
+  ]
+}

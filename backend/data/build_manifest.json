@@ -1,0 +1,488 @@
+{
+  "schema_version": 1,
+  "built_utc": "2026-11-20T05:38:47Z",
+  "graph_version": "e184af352bc6",
+  "mode": {
+    "offline": false
+  },
+  "toolchain": {
+    "python": "3.11.17",
+    "numpy": "2.4.6"
+  },
+  "sources": {
+    "basemap": {
+      "origin": "network",
+      "url": "https://data.cityofnewyork.us/api/geospatial/gthc-hcne?method=export&format=GeoJSON",
+      "sha1": "9e33865a904835886e7845648aad346cd38cfaeb",
+      "bytes": 3166797,
+      "note": ""
+    },
+    "complexes": {
+      "origin": "network",
+      "url": "https://data.ny.gov/resource/5f5g-n3cz.json?$limit=5000",
+      "sha1": "844db4822bb8dcc236ba1490eb6df4aba73b6711",
+      "bytes": 169326,
+      "note": ""
+    },
+    "gtfs": {
+      "origin": "network",
+      "url": "http://web.mta.info/developers/data/nyct/subway/google_transit.zip",
+      "sha1": "2f891138deba814d2d278360becd4d9e1fa15d00",
+      "bytes": 5606305,
+      "note": ""
+    },
+    "ridership": {
+      "origin": "network",
+      "url": "https://data.ny.gov/resource/5wq4-mkjj.json",
+      "sha1": "fb7e9574f07cf234061871e18068314695ec5227",
+      "bytes": 653269,
+      "note": ""
+    },
+    "stations": {
+      "origin": "network",
+      "url": "https://data.ny.gov/resource/39hk-dx4f.json?$limit=5000",
+      "sha1": "a03c88131390596e3e0a4a21359958b781ccc024",
+      "bytes": 284922,
+      "note": ""
+    }
+  },
+  "fallbacks_used": [],
+  "gtfs_feed_info": {
+    "feed_contact_url": "https://groups.google.com/forum/#!forum/mtadeveloperresources",
+    "feed_end_date": "20270515",
+    "feed_lang": "EN",
+    "feed_publisher_name": "MTA New York City Transit",
+    "feed_publisher_url": "https://www.mta.info/",
+    "feed_start_date": "20261101",
+    "feed_version": "20261028-fall-2026-pick-with-long-term-supplements"
+  },
+  "ridership_window": {
+    "since_ts": "2026-09-16T23:00:00",
+    "max_ts": "2026-11-11T23:00:00",
+    "rows": 10267
+  },
+  "routes_without_am_peak_service": [],
+  "counts": {
+    "routes": 28,
+    "stations": 475,
+    "complexes": 424,
+    "platforms": 947,
+    "nodes": 1432,
+    "edges": 1915,
+    "edges_by_kind": {
+      "crossover": 316,
+      "run": 1386,
+      "turnback": 145,
+      "yard_lead": 68
+    },
+    "segments": 483,
+    "segments_with_express": 210,
+    "river_segments": 24,
+    "interlockings": 151,
+    "interlockings_by_kind": {
+      "L2X": 82,
+      "X2L": 82,
+      "junction": 32,
+      "turnback": 80
+    },
+    "pocket_turnback_stations": 49,
+    "yards": 10,
+    "patterns": 158,
+    "presets": 7,
+    "hubs": 113,
+    "service_rows": {
+      "am_peak": 97,
+      "midday": 74,
+      "pm_rush": 84,
+      "late_night": 45
+    },
+    "system_entries_h": {
+      "am_peak": 337295.5,
+      "midday": 214785.7,
+      "pm_rush": 378871.2,
+      "late_night": 15288.8
+    }
+  },
+  "preset_maneuvers": [
+    {
+      "id": "lex-union-sq",
+      "profile": "am_peak",
+      "disruptions": [
+        {
+          "kind": "full_station_closure",
+          "target": {
+            "type": "station",
+            "idx": 148
+          },
+          "affected_patterns": 18,
+          "routes_by_maneuver": {
+            "hold": [
+              "4",
+              "5",
+              "6",
+              "6X"
+            ],
+            "short_turn": [
+              "4",
+              "5"
+            ],
+            "reroute": [
+              "5"
+            ],
+            "gap_train": [
+              "4",
+              "5",
+              "6",
+              "6X"
+            ]
+          },
+          "nearest": {
+            "short_turn": "Brooklyn Bridge-City Hall@4",
+            "express": null,
+            "local": null,
+            "reroute": "Nevins St@9"
+          }
+        }
+      ]
+    },
+    {
+      "id": "qbl-express-roosevelt",
+      "profile": "am_peak",
+      "disruptions": [
+        {
+          "kind": "express_block",
+          "target": {
+            "type": "segment",
+            "idx": 342
+          },
+          "affected_patterns": 10,
+          "routes_by_maneuver": {
+            "hold": [
+              "E",
+              "F",
+              "FX"
+            ],
+            "short_turn": [
+              "E",
+              "F",
+              "FX"
+            ],
+            "local": [
+              "E",
+              "F",
+              "FX"
+            ],
+            "reroute": [
+              "F",
+              "FX"
+            ],
+            "gap_train": [
+              "E",
+              "F"
+            ]
+          },
+          "nearest": {
+            "short_turn": "Queens Plaza@5",
+            "express": null,
+            "local": "Jackson Hts-Roosevelt Av@0",
+            "reroute": "47-50 Sts-Rockefeller Ctr@9"
+          }
+        }
+      ]
+    },
+    {
+      "id": "times-sq-signals",
+      "profile": "pm_rush",
+      "disruptions": [
+        {
+          "kind": "signal_delay",
+          "target": {
+            "type": "interlocking",
+            "idx": 7
+          },
+          "affected_patterns": 10,
+          "routes_by_maneuver": {
+            "hold": [
+              "1",
+              "2",
+              "3"
+            ],
+            "short_turn": [
+              "1",
+              "2",
+              "3"
+            ],
+            "reroute": [
+              "2"
+            ],
+            "gap_train": [
+              "2",
+              "3"
+            ]
+          },
+          "nearest": {
+            "short_turn": "34 St-Penn Station@0",
+            "express": null,
+            "local": null,
+            "reroute": "149 St-Hostos@11"
+          }
+        }
+      ]
+    },
+    {
+      "id": "canarsie-tube",
+      "profile": "am_peak",
+      "disruptions": [
+        {
+          "kind": "local_block",
+          "target": {
+            "type": "segment",
+            "idx": 394
+          },
+          "affected_patterns": 5,
+          "routes_by_maneuver": {
+            "hold": [
+              "L"
+            ],
+            "short_turn": [
+              "L"
+            ],
+            "gap_train": [
+              "L"
+            ]
+          },
+          "nearest": {
+            "short_turn": "Bedford Av@0",
+            "express": null,
+            "local": null,
+            "reroute": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "manhattan-bridge",
+      "profile": "am_peak",
+      "disruptions": [
+        {
+          "kind": "local_block",
+          "target": {
+            "type": "segment",
+            "idx": 279
+          },
+          "affected_patterns": 9,
+          "routes_by_maneuver": {
+            "hold": [
+              "B",
+              "D"
+            ],
+            "short_turn": [
+              "D"
+            ],
+            "gap_train": [
+              "B",
+              "D"
+            ]
+          },
+          "nearest": {
+            "short_turn": "36 St@6",
+            "express": null,
+            "local": null,
+            "reroute": null
+          }
+        },
+        {
+          "kind": "local_block",
+          "target": {
+            "type": "segment",
+            "idx": 440
+          },
+          "affected_patterns": 7,
+          "routes_by_maneuver": {
+            "hold": [
+              "N",
+              "Q"
+            ],
+            "short_turn": [
+              "N",
+              "Q"
+            ],
+            "reroute": [
+              "N",
+              "Q"
+            ],
+            "gap_train": [
+              "N",
+              "Q"
+            ]
+          },
+          "nearest": {
+            "short_turn": "57 St-7 Av@9",
+            "express": null,
+            "local": null,
+            "reroute": "DeKalb Av@0"
+          }
+        }
+      ]
+    },
+    {
+      "id": "8av-59st-local",
+      "profile": "am_peak",
+      "disruptions": [
+        {
+          "kind": "local_block",
+          "target": {
+            "type": "station",
+            "idx": 196
+          },
+          "affected_patterns": 11,
+          "routes_by_maneuver": {
+            "hold": [
+              "B",
+              "C",
+              "D"
+            ],
+            "short_turn": [
+              "B",
+              "D"
+            ],
+            "express": [
+              "C"
+            ],
+            "gap_train": [
+              "B",
+              "C",
+              "D"
+            ]
+          },
+          "nearest": {
+            "short_turn": "145 St@9",
+            "express": "42 St-Port Authority Bus Terminal@1",
+            "local": null,
+            "reroute": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "joralemon-tunnel",
+      "profile": "am_peak",
+      "disruptions": [
+        {
+          "kind": "local_block",
+          "target": {
+            "type": "segment",
+            "idx": 112
+          },
+          "affected_patterns": 11,
+          "routes_by_maneuver": {
+            "hold": [
+              "4",
+              "5"
+            ],
+            "short_turn": [
+              "4",
+              "5"
+            ],
+            "reroute": [
+              "5"
+            ],
+            "gap_train": [
+              "4",
+              "5"
+            ]
+          },
+          "nearest": {
+            "short_turn": "Bowling Green@0",
+            "express": null,
+            "local": null,
+            "reroute": "Nevins St@1"
+          }
+        }
+      ]
+    }
+  ],
+  "stats": {
+    "patterns_all": 200,
+    "patterns_kept": 158,
+    "stop_hops": 1093,
+    "bypass_hops": 133,
+    "elementary_hops": 966,
+    "x_hops": 420,
+    "x_hops_by_reason": {
+      "bypass": 332,
+      "continuation": 29,
+      "curated:middle": 38,
+      "curated:three_track": 96,
+      "gap": 10,
+      "overtakes": 330,
+      "reverse": 1,
+      "tail": 13
+    },
+    "turnback_evidence_stations": 44,
+    "routes_without_am_peak_service": [],
+    "segment_geometry": {
+      "shape": 483,
+      "straight": 0
+    },
+    "edge_timing_sources": {
+      "schedule": 1332,
+      "parallel": 54,
+      "reverse": 0,
+      "fallback": 0
+    },
+    "complex_source": "dataset",
+    "station_meta_source": "stations_dataset",
+    "demand_source": "ridership",
+    "system_entries_h": {
+      "am_peak": 337291.8,
+      "midday": 214784.2,
+      "pm_rush": 378873.9,
+      "late_night": 15289.3
+    },
+    "unserved_entries_h": {
+      "am_peak": 0.0,
+      "midday": 0.0,
+      "pm_rush": 0.0,
+      "late_night": 0.0
+    },
+    "weekday_entries": 4421577.1,
+    "hubs": 113,
+    "crossovers_from_patterns": 75,
+    "standard_placement_stations": 74,
+    "patterns_without_next": 7,
+    "pocket_turnback_stations": 49
+  },
+  "notes": [],
+  "validation": {
+    "errors": [],
+    "warnings": [
+      "network_geo.json is 430707 bytes (target <= 400000)"
+    ]
+  },
+  "artifacts": {
+    "network.json": {
+      "bytes": 819391,
+      "sha1": "9f1410f5e298e5b44b40bcf71dd6f271344383aa"
+    },
+    "network_geo.json": {
+      "bytes": 430707,
+      "sha1": "d9b2202a5d53ef5702a939646808c03b65680bfc",
+      "gzip_bytes": 80988
+    }
+  },
+  "timings_s": {
+    "sources": 26.931,
+    "model": 0.954,
+    "assemble": 0.041,
+    "validate": 0.05,
+    "total": 27.977,
+    "model.parse_gtfs": 0.601,
+    "model.patterns": 0.025,
+    "model.tracks": 0.059,
+    "model.topology": 0.052,
+    "model.geometry_timing": 0.183,
+    "model.demand_service": 0.03,
+    "model.presets": 0.004
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "_about": "Hand-curated overlay (ARCHITECTURE §2.4): only facts GTFS cannot express. Station references are GTFS parent stop ids; every reference is resolved by scripts/build_nyc_network.py, which fails on anything that does not resolve. Keys starting with '_' and 'note' fields are documentation.",
+  "cbtc": [
+    {"name": "Canarsie (L)", "routes": ["L"], "from_gtfs": "L01", "to_gtfs": "L29", "note": "Whole line, CBTC since 2009."},
+    {"name": "Flushing (7)", "routes": ["7", "7X"], "from_gtfs": "726", "to_gtfs": "701", "note": "Whole line incl. the middle track, CBTC since 2018."},
+    {"name": "Queens Blvd: 50 St - Kew Gardens-Union Tpke via 53 St (E/F)", "routes": ["E"], "from_gtfs": "A25", "to_gtfs": "F06", "note": "QBL CBTC west and east sections; covers the E/F express and the 53 St tunnel."},
+    {"name": "Queens Blvd local: Queens Plaza - Forest Hills-71 Av (M/R)", "routes": ["R"], "from_gtfs": "G21", "to_gtfs": "G08"},
+    {"name": "8 Av: 59 St-Columbus Circle - High St (A/C/E)", "routes": ["A", "C"], "from_gtfs": "A24", "to_gtfs": "A40", "note": "8 Av CBTC; the E shares these tracks between 50 St and Canal St."}
+  ],
+  "middle_tracks": [
+    {"name": "Jerome Av (4)", "routes": ["4"], "from_gtfs": "414", "to_gtfs": "402", "peak": "am_toward_manhattan", "note": "Center track from 161 St-Yankee Stadium to Mosholu Pkwy (Jerome Yard lead); no express service in this pick."},
+    {"name": "West End (D)", "routes": ["D"], "from_gtfs": "B13", "to_gtfs": "B22", "peak": "am_toward_manhattan", "note": "Center track from Fort Hamilton Pkwy to 25 Av; no express service in this pick."}
+  ],
+  "three_track_peak": [
+    {"name": "Flushing (7X)", "routes": ["7", "7X"], "from_gtfs": "716", "to_gtfs": "702", "peak": "am_toward_manhattan", "note": "Middle track 33 St-Rawson St to Mets-Willets Point; 7X overtakes locals between 61 St-Woodside and Mets-Willets Point."},
+    {"name": "Pelham (6X)", "routes": ["6", "6X"], "from_gtfs": "619", "to_gtfs": "608", "peak": "am_toward_manhattan", "note": "<6> express 3 Av-138 St to Parkchester, peak direction."},
+    {"name": "Concourse (D)", "routes": ["B", "D"], "from_gtfs": "D13", "to_gtfs": "D05", "peak": "am_toward_manhattan", "note": "D rush-hour express 145 St to Fordham Rd, peak direction."},
+    {"name": "White Plains Rd (5)", "routes": ["2", "5"], "from_gtfs": "221", "to_gtfs": "208", "peak": "am_toward_manhattan", "note": "5 rush-hour express E 180 St to 3 Av-149 St (AM) and toward Gun Hill Rd (PM)."},
+    {"name": "Broadway-Brooklyn (J)", "routes": ["J", "Z", "M"], "from_gtfs": "M16", "to_gtfs": "M11", "peak": "am_toward_manhattan", "note": "J/Z peak-direction express Myrtle Av to Marcy Av; skip-stop elsewhere has no overtakes."}
+  ],
+  "turnbacks": [
+    {"gtfs": "R14", "routes": ["N", "Q", "R", "W"], "note": "57 St-7 Av: relay/layup tracks north of the station (former N/Q/W terminal)."},
+    {"gtfs": "M21", "routes": ["J", "Z"], "note": "Chambers St (Nassau St): 4-track station with relay capacity; J/Z short-turn location."},
+    {"gtfs": "F14", "routes": ["F"], "note": "2 Av: express tracks east of the station used as relay (former V terminal)."},
+    {"gtfs": "420", "routes": ["4", "5"], "note": "Bowling Green: stub/loop tracks used by terminating Lexington Av trains."},
+    {"gtfs": "J13", "routes": ["J", "Z"], "note": "111 St: center track used to relay Jamaica line trains."},
+    {"gtfs": "L08", "routes": ["L"], "note": "Bedford Av: crossovers at the Brooklyn end of the Canarsie Tube; the tube-closure plan ran Brooklyn-only L service relaying here."}
+  ],
+  "yards": [
+    {"name": "207 St Yard", "division": "B", "lat": 40.8685, "lon": -73.9135, "lead_gtfs": ["A02"], "routes": ["A"], "fleet_cap": 6, "deadhead_s": 420},
+    {"name": "Concourse Yard", "division": "B", "lat": 40.876, "lon": -73.8885, "lead_gtfs": ["D03"], "routes": ["B", "D"], "fleet_cap": 6, "deadhead_s": 360},
+    {"name": "Coney Island Yard", "division": "B", "lat": 40.5855, "lon": -73.9795, "lead_gtfs": ["D43"], "routes": ["D", "F", "N", "Q"], "fleet_cap": 8, "deadhead_s": 480},
+    {"name": "Jamaica Yard", "division": "B", "lat": 40.7185, "lon": -73.8255, "lead_gtfs": ["F06", "G08"], "routes": ["E", "F", "M", "R"], "fleet_cap": 7, "deadhead_s": 420},
+    {"name": "Pitkin Yard", "division": "B", "lat": 40.6725, "lon": -73.869, "lead_gtfs": ["A55"], "routes": ["A", "C"], "fleet_cap": 5, "deadhead_s": 360},
+    {"name": "Livonia Yard", "division": "A", "lat": 40.664, "lon": -73.879, "lead_gtfs": ["257"], "routes": ["3", "4"], "fleet_cap": 5, "deadhead_s": 300},
+    {"name": "Corona Yard", "division": "A", "lat": 40.7505, "lon": -73.8475, "lead_gtfs": ["702"], "routes": ["7", "7X"], "fleet_cap": 6, "deadhead_s": 360},
+    {"name": "Canarsie Yard", "division": "B", "lat": 40.6485, "lon": -73.8975, "lead_gtfs": ["L29"], "routes": ["L"], "fleet_cap": 5, "deadhead_s": 300},
+    {"name": "239 St Yard", "division": "A", "lat": 40.9005, "lon": -73.8495, "lead_gtfs": ["204"], "routes": ["2", "5"], "fleet_cap": 6, "deadhead_s": 360},
+    {"name": "Westchester Yard (Pelham)", "division": "A", "lat": 40.8385, "lon": -73.8355, "lead_gtfs": ["604"], "routes": ["6", "6X"], "fleet_cap": 5, "deadhead_s": 420}
+  ],
+  "river_crossings": [
+    {"a": "A40", "b": "A38", "name": "Cranberry St Tunnel"},
+    {"a": "224", "b": "222", "name": "Lenox Av Line Harlem River Tunnel"},
+    {"a": "621", "b": "416", "name": "Lexington Av Line Harlem River Tunnel (4/5)"},
+    {"a": "621", "b": "619", "name": "Lexington Av Line Harlem River Tunnel (6)"},
+    {"a": "D12", "b": "D11", "name": "Concourse Line Harlem River Tunnel"},
+    {"a": "106", "b": "107", "name": "Broadway Bridge"},
+    {"a": "723", "b": "721", "name": "Steinway Tunnel"},
+    {"a": "L06", "b": "L08", "name": "Canarsie Tube"},
+    {"a": "F11", "b": "F09", "name": "53 St Tunnel"},
+    {"a": "B08", "b": "B06", "name": "63 St Tunnel (Manhattan channel)"},
+    {"a": "B06", "b": "B04", "name": "63 St Tunnel (Queens channel)"},
+    {"a": "R11", "b": "R09", "name": "60 St Tunnel (N/W)"},
+    {"a": "R11", "b": "G21", "name": "60 St Tunnel (R)"},
+    {"a": "M18", "b": "M16", "name": "Williamsburg Bridge"},
+    {"a": "D22", "b": "R30", "name": "Manhattan Bridge (north tracks)"},
+    {"a": "Q01", "b": "R30", "name": "Manhattan Bridge (south tracks)"},
+    {"a": "R27", "b": "R28", "name": "Montague St Tunnel"},
+    {"a": "230", "b": "231", "name": "Clark St Tunnel"},
+    {"a": "420", "b": "423", "name": "Joralemon St Tunnel"},
+    {"a": "F16", "b": "F18", "name": "Rutgers St Tunnel"},
+    {"a": "G26", "b": "G24", "name": "Newtown Creek (G)"},
+    {"a": "H04", "b": "H03", "name": "Jamaica Bay trestle (Howard Beach)"},
+    {"a": "H04", "b": "H06", "name": "Beach Channel Bridge (Far Rockaway branch)"},
+    {"a": "H04", "b": "H12", "name": "Beach Channel Bridge (Rockaway Park branch)"}
+  ],
+  "hubs_extra": [],
+  "presets": [
+    {"id": "lex-union-sq", "title": "Close 14 St–Union Sq", "subtitle": "4 5 6 · Lexington Av", "profile": "am_peak", "zoom_m_per_px": 5.0,
+     "disruptions": [{"kind": "full_station_closure", "target": {"type": "station", "gtfs": "635"}, "duration_s": 1800}]},
+    {"id": "qbl-express-roosevelt", "title": "Express tracks blocked at Jackson Hts", "subtitle": "E F · Queens Blvd", "profile": "am_peak", "zoom_m_per_px": 9.0,
+     "disruptions": [{"kind": "express_block", "target": {"type": "segment", "a": "G14", "b": "G15"}, "duration_s": 1800}]},
+    {"id": "times-sq-signals", "title": "Signal problems at Times Sq–42 St", "subtitle": "1 2 3 · 7 Av", "profile": "pm_rush", "zoom_m_per_px": 4.0,
+     "disruptions": [{"kind": "signal_delay", "target": {"type": "interlocking", "gtfs": "127"}, "duration_s": 1800}]},
+    {"id": "canarsie-tube", "title": "Canarsie Tube blocked", "subtitle": "L · 1 Av – Bedford Av", "profile": "am_peak", "zoom_m_per_px": 7.0,
+     "disruptions": [{"kind": "local_block", "target": {"type": "segment", "a": "L06", "b": "L08"}, "duration_s": 1800}]},
+    {"id": "manhattan-bridge", "title": "Manhattan Bridge closed", "subtitle": "B D N Q · DeKalb Av – Canal St / Grand St", "profile": "am_peak", "zoom_m_per_px": 7.0,
+     "disruptions": [{"kind": "local_block", "target": {"type": "segment", "a": "D22", "b": "R30"}, "duration_s": 1800},
+                     {"kind": "local_block", "target": {"type": "segment", "a": "Q01", "b": "R30"}, "duration_s": 1800}]},
+    {"id": "8av-59st-local", "title": "Local tracks blocked at 59 St–Columbus Circle", "subtitle": "A B C D · 8 Av / Central Park West", "profile": "am_peak", "zoom_m_per_px": 6.0,
+     "disruptions": [{"kind": "local_block", "target": {"type": "station", "gtfs": "A24"}, "duration_s": 1800}]},
+    {"id": "joralemon-tunnel", "title": "Joralemon St Tunnel blocked", "subtitle": "4 5 · Bowling Green – Borough Hall", "profile": "am_peak", "zoom_m_per_px": 7.0,
+     "disruptions": [{"kind": "local_block", "target": {"type": "segment", "a": "420", "b": "423"}, "duration_s": 1800}]}
+  ]
+}
