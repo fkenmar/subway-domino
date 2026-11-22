@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { presetSubtitle } from "@/lib/copy";
+import { presetSubtitle, presetTitle } from "@/lib/copy";
 import { useDisclosure, useDismiss } from "@/lib/motion";
 import type { GeoPreset } from "@/lib/network";
 import { getSession } from "@/lib/session";
@@ -13,7 +13,8 @@ import { SubtitleWithBullets } from "./RouteBullet";
 /**
  * "Break the city ▾": every curated meltdown in one menu (route bullets and a
  * one-line description each), a reminder that anything on the map can be
- * broken by clicking it, and the active disruptions with clear / clear all.
+ * broken by clicking it, and the active blockages with restore / clear all.
+ * Every blockage lasts until the user clears it.
  */
 export default function PresetBar() {
   const presets = useStore((s) => s.network?.presets ?? null);
@@ -40,6 +41,7 @@ export default function PresetBar() {
             <p className={styles.menuTitle}>Break the city</p>
             <p className={styles.menuNote}>
               Pick a meltdown, or {touch ? "tap" : "click"} any station, track or interlocking on the map to choose what fails.
+              It stays broken until you restore service.
             </p>
           </header>
           <nav aria-label="Meltdown presets">
@@ -53,9 +55,9 @@ export default function PresetBar() {
                         className={styles.item}
                         data-active={p.id === active}
                         onClick={() => trigger(p)}
-                        title={`${p.title} — ${presetSubtitle(p.subtitle)}`}
+                        title={`${presetTitle(p)} — ${presetSubtitle(p.subtitle)}`}
                       >
-                        <span className={styles.itemTitle}>{p.title}</span>
+                        <span className={styles.itemTitle}>{presetTitle(p)}</span>
                         <SubtitleWithBullets text={presetSubtitle(p.subtitle)} size={15} />
                       </button>
                     </li>
@@ -77,7 +79,7 @@ export default function PresetBar() {
         <span className={styles.alarm} aria-hidden="true" />
         <span className={styles.triggerLabel}>Break the city</span>
         {count > 0 && (
-          <span className={styles.badge} aria-label={`${count} active`}>
+          <span className={styles.badge} aria-label={`${count} active ${count === 1 ? "blockage" : "blockages"}`}>
             {count}
           </span>
         )}

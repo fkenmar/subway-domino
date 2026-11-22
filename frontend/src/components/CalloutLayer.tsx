@@ -60,6 +60,7 @@ function ToastCard({ toast }: { toast: Toast }) {
     <div
       className={styles.toast}
       data-kind={toast.kind}
+      data-tone={toast.tone}
       data-state={leaving ? "leaving" : "shown"}
       role={toast.kind === "error" ? "alert" : "status"}
       onPointerEnter={() => setPaused(true)}
@@ -67,20 +68,8 @@ function ToastCard({ toast }: { toast: Toast }) {
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
     >
-      <span className={styles.kicker}>{toast.kind === "error" ? "Not applied" : "Notice"}</span>
+      <span className={styles.kicker}>{toast.kicker ?? (toast.kind === "error" ? "Not applied" : "Notice")}</span>
       <p className={styles.text}>{toast.text}</p>
-      {toast.cta && (
-        <button
-          type="button"
-          className={styles.cta}
-          onClick={() => {
-            if (toast.cta) getSession().setSpeed(toast.cta.speed);
-            leave();
-          }}
-        >
-          {toast.cta.label}
-        </button>
-      )}
       <CloseButton onClick={leave} />
     </div>
   );

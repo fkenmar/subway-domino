@@ -35,12 +35,13 @@ from app.callouts import CalloutGate, CalloutWriter, format_duration, format_rid
 from app.config import ConfigError, Settings, normalize_origin
 from app.main import create_app
 from app.manager import CpuGovernor, SessionManager
-from app.session import Session, SessionContext, ticks_due
+from app.session import Session, SessionContext, as_blockages, ticks_due
 from app.transport import Outbox
-from sim import NYCSubwaySim, Scenario, constants as C
+from sim import NYCSubwaySim, Scenario, constants as C, preset_scenario
 from sim.engine import ActionEvent
-from sim.graph import Graph
-from sim.testing import TOY_STATION, toy_segment
+from sim.graph import Graph, canonical_graph_version, graph_from_dict
+from sim.scenarios import ScheduledDisruption
+from sim.testing import TOY_STATION, toy_network_dict, toy_segment
 
 pytestmark = pytest.mark.filterwarnings("ignore::DeprecationWarning")
 
@@ -586,8 +587,9 @@ async def test_preset_resets_to_its_profile_and_starts_its_disruptions(server: L
         ev = await c.expect("events")
         assert [(i["kind"], i["disruption"]["kind"], i["disruption"]["target"]) for i in ev["items"]] == [
             ("disruption_started", "local_block", {"type": "segment", "idx": SEG_RIVER})]
+        assert ev["items"][0]["disruption"]["end_t"] is None  # network.json says 1800 s; the UI blocks until cleared
         d = await c.expect("disruptions")
-        assert len(d["items"]) == 1 and d["items"][0]["end_t"] == d["items"][0]["start_t"] + 1800
+        assert len(d["items"]) == 1 and d["items"][0]["end_t"] is None
         m = await c.expect("metrics")
         assert m["t"] == C.PROFILE_START_S["am_peak"]
         f = await c.expect_frame(where=lambda f: f.clock_s >= C.PROFILE_START_S["am_peak"])
@@ -595,6 +597,49 @@ async def test_preset_resets_to_its_profile_and_starts_its_disruptions(server: L
         await c.send(type="preset", id="no-such-preset")
         err = await c.expect("error")
         assert err["code"] == "bad_request" and "no-such-preset" in err["message"]
+
+
+def test_as_blockages_makes_presets_indefinite_and_turns_signal_delay_into_a_local_block() -> None:
+    timed = Scenario(seed=3, profile="pm_rush", disruptions=(
+        ScheduledDisruption("signal_delay", "interlocking", 7, 0.0, 1800.0),
+        ScheduledDisruption("express_block", "segment", 4, 0.0, 600.0),
+        ScheduledDisruption("full_station_closure", "station", 2, 0.0, None),
+    ))
+    out = as_blockages(timed)
+    assert [(d.kind, d.target_type, d.target_idx, d.start_s, d.duration_s) for d in out.disruptions] == [
+        ("local_block", "interlocking", 7, 0.0, None),  # same target, now a blockage
+        ("express_block", "segment", 4, 0.0, None),
+        ("full_station_closure", "station", 2, 0.0, None),
+    ]
+    assert (out.seed, out.profile) == (3, "pm_rush")
+    assert timed.disruptions[0].kind == "signal_delay"  # the source scenario is untouched
+
+
+@pytest.mark.asyncio
+async def test_signal_delay_preset_arrives_as_an_indefinite_local_block(tmp_path: Path) -> None:
+    """A preset whose data says ``signal_delay`` for 1800 s is served as a local block with no end."""
+    data = toy_network_dict()
+    data["presets"].append({"id": "toy-signals", "title": "Signal problems", "subtitle": "1 2 · Toy trunk",
+                            "profile": "pm_rush", "focus": {"x": 0.0, "y": 0.0, "zoom_m_per_px": 6.0},
+                            "disruptions": [{"kind": "signal_delay", "target": {"type": "segment", "idx": SEG_RIVER},
+                                             "duration_s": 1800}]})
+    data["graph_version"] = canonical_graph_version(data)
+    graph = graph_from_dict(data, source="<toy signals>")
+    assert preset_scenario("toy-signals", graph).disruptions[0].kind == "signal_delay"  # sim side unchanged
+    (tmp_path / "network_geo.json").write_text(json.dumps(GEO_STUB), encoding="utf-8")
+    with live(graph, tmp_path) as srv:
+        async with client(srv) as c:
+            await c.hello()
+            await c.expect("disruptions")
+            await c.send(type="preset", id="toy-signals")
+            ev = await c.expect("events", where=lambda e: any(i["kind"] == "disruption_started" for i in e["items"]))
+            started = [i["disruption"] for i in ev["items"] if i["kind"] == "disruption_started"]
+            assert [(d["kind"], d["target"], d["end_t"]) for d in started] == [
+                ("local_block", {"type": "segment", "idx": SEG_RIVER}, None)]
+            d = await c.expect("disruptions", where=lambda d: len(d["items"]) == 1)
+            assert d["items"][0]["kind"] == "local_block" and d["items"][0]["end_t"] is None
+            m = await c.expect("metrics")
+            assert m["t"] == C.PROFILE_START_S["pm_rush"]
 
 
 @pytest.mark.asyncio

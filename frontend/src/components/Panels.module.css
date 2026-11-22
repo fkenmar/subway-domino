@@ -67,7 +67,7 @@
 
 .ditem {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 6px;
   animation: row-in 220ms var(--ease-out);
@@ -97,6 +97,13 @@
   border-radius: 50%;
 }
 
+.dtext {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
 .dlabel {
   min-width: 0;
   overflow: hidden;
@@ -107,29 +114,35 @@
 }
 
 .dtime {
-  font-size: 12px;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
 }
 
-.dclear {
-  display: inline-grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border: 0;
+/* "Restore" (clears one blockage): a real labelled button, not a bare ×. */
+.drestore {
+  flex: none;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: var(--radius-sm);
-  background: none;
-  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.dclear:hover {
-  color: var(--text);
-  background: var(--glass-hover);
+.drestore:hover {
+  border-color: var(--good);
+  background: rgba(62, 211, 107, 0.14);
 }
 
-.dclear svg,
+.drestore:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .close svg {
   width: 11px;
   height: 11px;

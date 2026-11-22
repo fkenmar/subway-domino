@@ -1000,7 +1000,11 @@ class Session {
         const preset = this.server.net.geo.presets.find((p) => p.id === msg.id);
         if (!preset) return this.error("bad_request", `Unknown preset ${msg.id}.`);
         this.resetSim(PROFILES.includes(preset.profile) ? preset.profile : this.settings.profile);
-        for (const d of preset.disruptions) this.addDisruption(d.kind, d.target, d.duration_s ?? null);
+        // Like the server's _on_preset: every preset disruption is a blockage until cleared,
+        // and signal problems become a local block on the same target.
+        for (const d of preset.disruptions) {
+          this.addDisruption(d.kind === "signal_delay" ? "local_block" : d.kind, d.target, null);
+        }
         this.sendMetrics();
         return;
       }

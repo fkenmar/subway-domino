@@ -21,7 +21,6 @@ type SwatchKind =
   | "crowded"
   | "closed"
   | "block"
-  | "signal"
   | "interlocking"
   | "yard"
   | "river";
@@ -145,12 +144,6 @@ function Swatch({ kind }: { kind: SwatchKind }) {
           <rect x="2" y="5" width="32" height="10" rx="2" fill="url(#mk-hatch)" />
         </svg>
       );
-    case "signal":
-      return (
-        <svg viewBox="0 0 36 20" aria-hidden="true">
-          <path d="M3 10h30" stroke="#e89a00" strokeWidth="5" strokeDasharray="6 4" />
-        </svg>
-      );
     case "interlocking":
       return (
         <svg viewBox="0 0 36 20" aria-hidden="true">
@@ -197,14 +190,13 @@ const KEY: readonly { group: string; items: readonly [SwatchKind, string][] }[] 
       ["transfer", "Transfer between stations"],
       ["busy", "Crowding up"],
       ["crowded", "Over 80 % of safe capacity"],
-      ["closed", "Closed (badge counts down)"],
+      ["closed", "Closed until you reopen it"],
     ],
   },
   {
     group: "Track",
     items: [
-      ["block", "Blocked track"],
-      ["signal", "Signal problems"],
+      ["block", "Blocked track (until you clear it)"],
       ["interlocking", "Interlocking (switches)"],
       ["yard", "Rail yard"],
       ["river", "River crossing"],

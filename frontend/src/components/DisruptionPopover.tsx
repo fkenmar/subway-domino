@@ -2,14 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DISRUPTION_INFO } from "@/lib/copy";
-import {
-  DURATION_CHOICES,
-  remainingS,
-  targetKindLabel,
-  targetLabel,
-  validKinds,
-} from "@/lib/disruptions";
-import { formatCountdown } from "@/lib/format";
+import { sinceText, targetKindLabel, targetLabel, validKinds } from "@/lib/disruptions";
 import { BREAKPOINT_MOBILE, currentInsets } from "@/lib/layout";
 import type { Network } from "@/lib/network";
 import { placePopover, type PopoverPlacement } from "@/lib/popover";
@@ -29,8 +22,6 @@ interface Choice {
   effect: string;
 }
 
-const DEFAULT_DURATION_S = 1200;
-
 function KindIcon({ kind }: { kind: DisruptionKind }) {
   switch (kind) {
     case "full_station_closure":
@@ -38,15 +29,6 @@ function KindIcon({ kind }: { kind: DisruptionKind }) {
         <svg viewBox="0 0 20 20" aria-hidden="true">
           <circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
           <path d="M7 7l6 6M13 7l-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        </svg>
-      );
-    case "signal_delay":
-      return (
-        <svg viewBox="0 0 20 20" aria-hidden="true">
-          <rect x="6.5" y="2.5" width="7" height="15" rx="3.5" fill="none" stroke="currentColor" strokeWidth="1.7" />
-          <circle cx="10" cy="6.4" r="1.6" fill="currentColor" />
-          <circle cx="10" cy="10" r="1.6" fill="currentColor" opacity="0.45" />
-          <circle cx="10" cy="13.6" r="1.6" fill="currentColor" opacity="0.45" />
         </svg>
       );
     default:
@@ -66,7 +48,7 @@ function KindIcon({ kind }: { kind: DisruptionKind }) {
   }
 }
 
-/** Valid choices for a selected target, most dramatic first (§3.5 targeting rules). */
+/** Valid blockage choices for a selected target, most dramatic first (§3.5 targeting rules). */
 export function choicesFor(net: Network, target: DisruptionTarget): Choice[] {
   const out: Choice[] = validKinds(net, target).map((kind) => ({
     key: `${kind}:${target.type}:${target.idx}`,
@@ -121,7 +103,6 @@ function routesOf(net: Network, target: DisruptionTarget): number[] {
 function PopoverBody({ net, selection }: { net: Network; selection: Selection }) {
   useMapViewVersion();
   const disruptions = useStore((s) => s.disruptions);
-  const clockS = useStore((s) => s.clockS);
   const select = useStore((s) => s.select);
   const onboarding = useStore((s) => s.onboarding);
   const setOnboarding = useStore((s) => s.setOnboarding);
@@ -135,8 +116,8 @@ function PopoverBody({ net, selection }: { net: Network; selection: Selection })
   const choices = useMemo(() => choicesFor(net, target), [net, target]);
   const active = activeOn(net, target, disruptions);
   const [choiceKey, setChoiceKey] = useState(() => choices[0]?.key ?? "");
-  const [durationS, setDurationS] = useState<number | null>(DEFAULT_DURATION_S);
-  const [formOpen, setFormOpen] = useState(() => selection.disruptionId == null);
+  // Already blocked here: lead with "Restore service"; blocking more is one click away.
+  const [formOpen, setFormOpen] = useState(() => selection.disruptionId == null && active.length === 0);
   const choice = choices.find((c) => c.key === choiceKey) ?? choices[0];
   const sheet = viewport.w < BREAKPOINT_MOBILE;
 
@@ -184,7 +165,7 @@ function PopoverBody({ net, selection }: { net: Network; selection: Selection })
 
   const start = () => {
     if (!choice) return;
-    getSession().addDisruption(choice.kind, choice.target, durationS);
+    getSession().addDisruption(choice.kind, choice.target);
     if (onboarding === "presets") setOnboarding("toggle");
     select(null);
   };
@@ -218,23 +199,28 @@ function PopoverBody({ net, selection }: { net: Network; selection: Selection })
 
       {active.length > 0 && (
         <ul className={styles.active} aria-label="Active here">
-          {active.map((d) => {
-            const left = remainingS(d, clockS);
-            return (
-              <li key={d.id} className={styles.activeItem} data-highlight={d.id === selection.disruptionId}>
-                <span className={styles.activeIcon} data-kind={d.kind}>
-                  <KindIcon kind={d.kind} />
-                </span>
-                <span className={styles.activeText}>
-                  <span className={styles.activeLabel}>{d.label || DISRUPTION_INFO[d.kind].title}</span>
-                  <span className={styles.activeTime}>{left == null ? "Until cleared" : `${formatCountdown(left)} left`}</span>
-                </span>
-                <button type="button" className={styles.clear} onClick={() => getSession().clearDisruption(d.id)}>
-                  Clear
-                </button>
-              </li>
-            );
-          })}
+          {active.map((d) => (
+            <li key={d.id} className={styles.activeItem} data-highlight={d.id === selection.disruptionId}>
+              <span className={styles.activeIcon} data-kind={d.kind}>
+                <KindIcon kind={d.kind} />
+              </span>
+              <span className={styles.activeText}>
+                <span className={styles.activeLabel}>{d.label || DISRUPTION_INFO[d.kind].title}</span>
+                <span className={styles.activeTime}>{sinceText(d)}</span>
+              </span>
+              <button
+                type="button"
+                className={styles.clear}
+                onClick={() => getSession().clearDisruption(d.id)}
+                aria-label={`Restore service: ${d.label || DISRUPTION_INFO[d.kind].title}`}
+              >
+                <svg viewBox="0 0 14 14" aria-hidden="true">
+                  <path d="M2.5 7.4l3 3 6-6.4" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Restore service
+              </button>
+            </li>
+          ))}
         </ul>
       )}
 
@@ -242,7 +228,7 @@ function PopoverBody({ net, selection }: { net: Network; selection: Selection })
         <p className={styles.empty}>Nothing here can be disrupted.</p>
       ) : !formOpen ? (
         <button type="button" className={styles.more} onClick={() => setFormOpen(true)}>
-          Add another disruption here…
+          Block something else here…
         </button>
       ) : (
         <>
@@ -268,35 +254,22 @@ function PopoverBody({ net, selection }: { net: Network; selection: Selection })
             ))}
           </fieldset>
 
-          <fieldset className={styles.durations}>
-            <legend className={styles.legend}>For how long?</legend>
-            <div className={styles.segmented} role="radiogroup" aria-label="Duration">
-              {DURATION_CHOICES.map((d) => (
-                <button
-                  key={d.label}
-                  type="button"
-                  role="radio"
-                  aria-checked={durationS === d.seconds}
-                  className={styles.segment}
-                  onClick={() => setDurationS(d.seconds)}
-                >
-                  {d.label}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
           <button type="button" className={styles.go} onClick={start} disabled={!choice}>
             <KindIcon kind={choice?.kind ?? "local_block"} />
-            {choice ? `${choice.title}${durationS == null ? "" : ` · ${Math.round(durationS / 60)} min`}` : "Choose a disruption"}
+            {choice ? choice.title : "Choose what breaks"}
           </button>
+          <p className={styles.note}>It stays {choice?.kind === "full_station_closure" ? "closed" : "blocked"} until you restore service.</p>
         </>
       )}
     </div>
   );
 }
 
-/** Opens on any map target: lists only the disruption kinds valid there (§6 UX flow 5). */
+/**
+ * Opens on any map target: lists only the blockage kinds valid there, with no duration
+ * (every blockage lasts until cleared), and a "Restore service" button for each one
+ * already active there (§6 UX flow 5).
+ */
 export default function DisruptionPopover() {
   const selection = useStore((s) => s.selection);
   const net = useStore((s) => s.network);

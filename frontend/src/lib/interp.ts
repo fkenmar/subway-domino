@@ -520,7 +520,7 @@ export class FrameBuffer {
     if (this.prev) this.buildIndex(this.prev);
   }
 
-  /** Sim clock interpolated for render time `now` (smooth countdowns), or null before any frame. */
+  /** Sim clock interpolated for render time `now` (a smooth clock display), or null before any frame. */
   clockAt(now: number): number | null {
     const curr = this.curr;
     if (!curr) return null;

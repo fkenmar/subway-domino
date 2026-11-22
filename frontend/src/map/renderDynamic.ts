@@ -1,11 +1,10 @@
 /**
  * Dynamic layer, redrawn every animation frame (§6): disruption overlays and
- * countdown chips, station crowding, trains (positioned by the §2.7 rule and
+ * "CLOSED" / "BLOCKED" chips, station crowding, trains (positioned by the §2.7 rule and
  * interpolated between frames), selection / hover / search highlights.
  */
 import type { Camera } from "@/lib/camera";
-import { disruptionStations, remainingS, targetAnchor } from "@/lib/disruptions";
-import { formatCountdown } from "@/lib/format";
+import { chipText, disruptionStations, targetAnchor } from "@/lib/disruptions";
 import type { InterpolatedTrains } from "@/lib/interp";
 import type { Network } from "@/lib/network";
 import { locate, makePose } from "@/lib/positioning";
@@ -50,13 +49,6 @@ const KIND_COLOR: Record<DisruptionKind, string> = {
   local_block: PALETTE.block,
   express_block: PALETTE.block,
   signal_delay: PALETTE.signal,
-};
-
-const KIND_CHIP: Record<DisruptionKind, string> = {
-  full_station_closure: "CLOSED",
-  local_block: "LOCAL BLOCKED",
-  express_block: "EXPRESS BLOCKED",
-  signal_delay: "SIGNALS",
 };
 
 type Ctx2D = CanvasRenderingContext2D;
@@ -116,14 +108,15 @@ function addPill(p: Path2D, x: number, y: number, ux: number, uy: number, h: num
 }
 
 const CHIP_FONT = `700 10.5px ${FONT_STACK}`;
-const CHIP_MONO = `600 10.5px ui-monospace, "SF Mono", Menlo, monospace`;
+const CHIP_SINCE = `500 10.5px ${FONT_STACK}`;
 
 interface ChipLayout {
   rect: ChipRect;
   kind: keyof typeof KIND_COLOR;
   label: string;
   labelWidth: number;
-  time: string;
+  /** "since 8:12 AM" when zoomed in, else "" (never a countdown). */
+  since: string;
   selected: boolean;
 }
 
@@ -150,7 +143,7 @@ export class DynamicRenderer {
     this.drawTrains(ctx, scene);
   }
 
-  /** Disruption countdown chips: the topmost (interactive) layer, as laid out by `layoutChips`. */
+  /** Disruption status chips: the topmost (interactive) layer, as laid out by `layoutChips`. */
   renderChips(ctx: Ctx2D): void {
     this.paintChips(ctx);
   }
@@ -793,12 +786,12 @@ export class DynamicRenderer {
   }
 
   /**
-   * Lay the countdown chips out for this frame (stacking ones that would overlap)
+   * Lay the status chips out for this frame (stacking ones that would overlap)
    * and record their rectangles in `chips` for hit-testing and for station labels
    * to yield to. Call before drawing labels; `renderChips` paints the result.
    */
   layoutChips(ctx: Ctx2D, scene: DynamicScene): readonly ChipRect[] {
-    const { net, camera, tier, clockS } = scene;
+    const { net, camera, tier } = scene;
     const out: ChipLayout[] = [];
     this.chipLayout = out;
     this.chips = [];
@@ -812,13 +805,11 @@ export class DynamicRenderer {
       const stations = disruptionStations(net, d);
       const lift = stations.length && d.target.type !== "segment" ? this.stationRadius(scene, stations[0]) + 16 : 15;
       y -= lift;
-      const left = remainingS(d, clockS);
-      const label = tier.id >= 1 ? KIND_CHIP[d.kind] : "";
-      const time = left == null ? "∞" : formatCountdown(left);
+      const { label, since } = chipText(d, tier.id);
       ctx.font = CHIP_FONT;
-      const lw = label ? ctx.measureText(label).width + 6 : 0;
-      ctx.font = CHIP_MONO;
-      const tw = ctx.measureText(time).width;
+      const lw = ctx.measureText(label).width;
+      ctx.font = CHIP_SINCE;
+      const tw = since ? ctx.measureText(since).width + 6 : 0;
       const w = 8 + 8 + lw + tw + 8;
       const h = 18;
       x -= w / 2;
@@ -830,7 +821,7 @@ export class DynamicRenderer {
       if (x + w < 0 || y + h < 0 || x > camera.width || y - h > camera.height) continue;
       const rect = { id: d.id, x0: x, y0: y - h / 2, x1: x + w, y1: y + h / 2 };
       this.chips.push(rect);
-      out.push({ rect, kind: d.kind, label, labelWidth: lw, time, selected: scene.selection?.disruptionId === d.id });
+      out.push({ rect, kind: d.kind, label, labelWidth: lw, since, selected: scene.selection?.disruptionId === d.id });
     }
     ctx.restore();
     return this.chips;
@@ -841,7 +832,7 @@ export class DynamicRenderer {
     ctx.save();
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";
-    for (const { rect, kind, label, labelWidth, time, selected } of this.chipLayout) {
+    for (const { rect, kind, label, labelWidth, since, selected } of this.chipLayout) {
       const w = rect.x1 - rect.x0;
       const h = rect.y1 - rect.y0;
       const y = (rect.y0 + rect.y1) / 2;
@@ -857,16 +848,15 @@ export class DynamicRenderer {
       ctx.arc(rect.x0 + 9, y, 3.5, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
-      let tx = rect.x0 + 16;
-      if (label) {
-        ctx.font = CHIP_FONT;
-        ctx.fillStyle = color;
-        ctx.fillText(label, tx, y + 0.5);
-        tx += labelWidth;
+      const tx = rect.x0 + 16;
+      ctx.font = CHIP_FONT;
+      ctx.fillStyle = color;
+      ctx.fillText(label, tx, y + 0.5);
+      if (since) {
+        ctx.font = CHIP_SINCE;
+        ctx.fillStyle = PALETTE.chipText;
+        ctx.fillText(since, tx + labelWidth + 6, y + 0.5);
       }
-      ctx.font = CHIP_MONO;
-      ctx.fillStyle = PALETTE.chipText;
-      ctx.fillText(time, tx, y + 0.5);
     }
     ctx.restore();
   }

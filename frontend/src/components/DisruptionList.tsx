@@ -1,7 +1,7 @@
 "use client";
 
-import { remainingS, targetAnchor } from "@/lib/disruptions";
-import { formatCountdown } from "@/lib/format";
+import { sinceText, targetAnchor } from "@/lib/disruptions";
+import { formatClock } from "@/lib/format";
 import type { DisruptionInfo } from "@/lib/protocol";
 import { getSession } from "@/lib/session";
 import { useStore } from "@/lib/store";
@@ -14,10 +14,13 @@ export const KIND_DOT: Record<DisruptionInfo["kind"], string> = {
   signal_delay: "var(--warn)",
 };
 
-/** Active disruptions with countdowns, locate and clear actions (inside "Break the city"). */
+/**
+ * Active blockages (inside "Break the city"): each one stays until cleared, so every
+ * row says since when, can be located on the map, and has its own "Restore" button;
+ * "Clear all" restores every line at once. No countdowns.
+ */
 export default function DisruptionList({ onLocate }: { onLocate?: () => void }) {
   const disruptions = useStore((s) => s.disruptions);
-  const clockS = useStore((s) => s.clockS);
   const net = useStore((s) => s.network);
   const requestCamera = useStore((s) => s.requestCamera);
   const select = useStore((s) => s.select);
@@ -34,43 +37,38 @@ export default function DisruptionList({ onLocate }: { onLocate?: () => void }) 
   };
 
   return (
-    <section className={styles.active} aria-label="Active disruptions">
+    <section className={styles.active} aria-label="Active blockages">
       <header className={styles.head}>
         <span className={styles.kicker}>
-          Active now <span className={styles.count}>{disruptions.length}</span>
+          Blocked now <span className={styles.count}>{disruptions.length}</span>
         </span>
-        {disruptions.length > 1 && (
-          <button type="button" className={styles.linkButton} onClick={() => getSession().clearAll()}>
-            Clear all
-          </button>
-        )}
+        <button type="button" className={styles.linkButton} onClick={() => getSession().clearAll()}>
+          Clear all
+        </button>
       </header>
       <ul className={styles.dlist}>
-        {disruptions.map((d) => {
-          const left = remainingS(d, clockS);
-          return (
-            <li key={d.id} className={styles.ditem}>
-              <button type="button" className={styles.dlocate} onClick={() => locate(d)} title="Show on map">
-                <span className={styles.ddot} style={{ background: KIND_DOT[d.kind] }} aria-hidden="true" />
+        {disruptions.map((d) => (
+          <li key={d.id} className={styles.ditem}>
+            <button type="button" className={styles.dlocate} onClick={() => locate(d)} title="Show on map">
+              <span className={styles.ddot} style={{ background: KIND_DOT[d.kind] }} aria-hidden="true" />
+              <span className={styles.dtext}>
                 <span className={styles.dlabel}>{d.label || d.kind}</span>
-              </button>
-              <span className={styles.dtime} aria-label={left == null ? "until cleared" : `${formatCountdown(left)} left`}>
-                {left == null ? "∞" : formatCountdown(left)}
+                <span className={styles.dtime} title={sinceText(d)}>
+                  since {formatClock(d.start_t)}
+                </span>
               </span>
-              <button
-                type="button"
-                className={styles.dclear}
-                onClick={() => getSession().clearDisruption(d.id)}
-                aria-label={`Clear: ${d.label}`}
-                title="Clear"
-              >
-                <svg viewBox="0 0 12 12" aria-hidden="true">
-                  <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                </svg>
-              </button>
-            </li>
-          );
-        })}
+            </button>
+            <button
+              type="button"
+              className={styles.drestore}
+              onClick={() => getSession().clearDisruption(d.id)}
+              aria-label={`Restore service: ${d.label || d.kind}`}
+              title="Restore service"
+            >
+              Restore
+            </button>
+          </li>
+        ))}
       </ul>
     </section>
   );

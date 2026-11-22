@@ -64,6 +64,11 @@
   background: #c8241c;
 }
 
+/* "Service restored": the user cleared a blockage. */
+.toast[data-tone="restored"] .kicker {
+  background: #00933c;
+}
+
 .text {
   margin: 6px 0;
   min-width: 0;
@@ -185,8 +190,7 @@
 }
 
 .locate,
-.close,
-.cta {
+.close {
   flex: none;
   border: 0;
   cursor: pointer;
@@ -214,8 +218,7 @@
 }
 
 .locate:focus-visible,
-.close:focus-visible,
-.cta:focus-visible {
+.close:focus-visible {
   outline-color: #111111;
 }
 
@@ -227,21 +230,6 @@
 .close svg {
   width: 10px;
   height: 10px;
-}
-
-.cta {
-  height: 28px;
-  padding: 0 10px;
-  border-radius: var(--radius-sm);
-  background: #111111;
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.cta:hover {
-  background: #333333;
 }
 
 @keyframes toast-in {
@@ -259,8 +247,10 @@
 }
 
 @media (max-width: 699px) {
-  /* Phones: only the newest card, so the map stays visible. */
-  .toast:not(:last-child) {
+  /* Phones: only the newest card, so the map stays visible. A "Service restored" notice
+     answers what the user just did, so it wins over the AI callout while it lasts. */
+  .toast:not(:last-child):not([data-tone="restored"]),
+  .layer:has(.toast[data-tone="restored"]) .toast:not([data-tone="restored"]) {
     display: none;
   }
 

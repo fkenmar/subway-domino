@@ -25,7 +25,8 @@ only ever touched by one coroutine. Resets (profile change, preset, reset) run t
 warm-up in a worker thread so other sessions keep their frame rate meanwhile; while one is
 in flight nothing else reads the sim (a socket that reattaches meanwhile gets its metrics
 from the reset handler). A reset ends every active disruption, so each one is reported as
-``disruption_cleared`` before the new state's ``disruptions`` list.
+``disruption_cleared`` before the new state's ``disruptions`` list. A preset is served as
+blockages that last until the user clears them (:func:`as_blockages`).
 
 There is never a heuristic fallback: without a model, or after an inference error, AI mode
 is unavailable and the client is told so (``ai_unavailable``).
@@ -39,7 +40,7 @@ import math
 import time
 from collections import deque
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Protocol, TypeVar
 
 import numpy as np
@@ -72,6 +73,19 @@ RunBlocking = Callable[..., Awaitable[Any]]
 async def run_inline(fn: Callable[..., T], *args: Any) -> T:
     """Default :data:`RunBlocking`: call ``fn`` on the event loop (tests, tiny graphs)."""
     return fn(*args)
+
+
+def as_blockages(scenario: Scenario) -> Scenario:
+    """A preset as the UI serves it: every disruption is a blockage that lasts until cleared.
+
+    ``duration_s`` becomes ``None`` (no end) and a ``signal_delay`` becomes a ``local_block`` on
+    the same target (both kinds accept segments and interlockings, §3.5). Only the served copy
+    changes: ``network.json`` and :func:`sim.preset_scenario` keep their timed presets, so
+    ``graph_version`` and the WP2 calibration presets are untouched.
+    """
+    return replace(scenario, disruptions=tuple(
+        replace(d, kind="local_block" if d.kind == "signal_delay" else d.kind, duration_s=None)
+        for d in scenario.disruptions))
 
 
 @dataclass(frozen=True, slots=True)
@@ -515,7 +529,7 @@ class Session:
             return
         if not self._reset_allowed():
             return
-        cleared = await self._reset_sim(preset_scenario(msg.id, graph))
+        cleared = await self._reset_sim(as_blockages(preset_scenario(msg.id, graph)))
         self._send_events(cleared + [P.disruption_event("disruption_started", d) for d in self._known.values()])
         self._send_disruptions()
         self._send_metrics()
@@ -582,6 +596,7 @@ __all__ = [
     "Session",
     "SessionContext",
     "SessionStats",
+    "as_blockages",
     "PolicyLike",
     "RunBlocking",
     "run_inline",

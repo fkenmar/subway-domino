@@ -62,7 +62,9 @@ describe.skipIf(!HAVE_GEO)("real network_geo.json (WP1)", () => {
     expect(net.presets.length).toBeGreaterThanOrEqual(3);
     for (const p of net.presets) {
       for (const d of p.disruptions) {
-        expect(isValidDisruption(net, d.kind, d.target), `${p.id}: ${d.kind}`).toBe(true);
+        // The server serves presets as blockages: signal problems become a local block on the same target.
+        const served = d.kind === "signal_delay" ? "local_block" : d.kind;
+        expect(isValidDisruption(net, served, d.target), `${p.id}: ${served}`).toBe(true);
         const a = targetAnchor(net, d.target);
         expect(a, p.id).not.toBeNull();
         expect(p.focus, p.id).toBeDefined();

@@ -183,17 +183,17 @@ export const DISRUPTION_INFO: Record<DisruptionKind, { title: string; verb: stri
   full_station_closure: {
     title: "Station closed",
     verb: "Close",
-    effect: "No train may enter; waiting riders are turned away.",
+    effect: "No train may enter; waiting riders are turned away until you reopen it.",
   },
   local_block: {
     title: "Local track blocked",
     verb: "Block local track",
-    effect: "Local-track trains stop at a red signal before it.",
+    effect: "Local-track trains stop at a red signal before it, until you clear it.",
   },
   express_block: {
     title: "Express track blocked",
     verb: "Block express track",
-    effect: "Express-track trains stop at a red signal before it.",
+    effect: "Express-track trains stop at a red signal before it, until you clear it.",
   },
   signal_delay: {
     title: "Signal problems",
@@ -234,6 +234,21 @@ const PRESET_LINE_NAMES: Readonly<Record<string, string>> = {
   "7 Av": "Broadway–7 Av Line",
   "8 Av / Central Park West": "8 Av / Central Park West Line",
 };
+
+/**
+ * Preset titles that the data file words for a timed disruption the UI no longer offers. The
+ * server serves every preset as a blockage until cleared (a `signal_delay` becomes a local
+ * block on the same target), so the copy says so. Display only: ids and `network_geo.json`
+ * are unchanged.
+ */
+export const PRESET_TITLE_OVERRIDES: Readonly<Record<string, string>> = {
+  "times-sq-signals": "Tracks blocked at Times Sq–42 St",
+};
+
+/** A preset's display title (menu, tooltips and anywhere else it shows). */
+export function presetTitle(preset: { id: string; title: string }): string {
+  return PRESET_TITLE_OVERRIDES[preset.id] ?? preset.title;
+}
 
 /** "1 2 3 · 7 Av" → "1 2 3 · Broadway–7 Av Line" (display only; the data file is unchanged). */
 export function presetSubtitle(subtitle: string): string {

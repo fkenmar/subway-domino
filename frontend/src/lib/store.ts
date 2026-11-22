@@ -17,7 +17,6 @@ import type {
   MetricsMessage,
   MetricValues,
   Settings,
-  Speed,
   WelcomeConstants,
 } from "./protocol";
 
@@ -74,8 +73,10 @@ export interface Toast {
   action?: ActionName;
   /** Wall-clock ms (Date.now()) when the toast was created. */
   createdAt: number;
-  /** Optional one-click follow-up (e.g. "Slow to 1 min/s"). */
-  cta?: { label: string; speed: Speed };
+  /** Label tab of a notice ("Service restored"); defaults to "Notice" / "Not applied". */
+  kicker?: string;
+  /** "restored": a blockage the user cleared (green tab). */
+  tone?: "restored";
 }
 
 /** The single AI callout on screen (paced: see calloutPacer.ts). */

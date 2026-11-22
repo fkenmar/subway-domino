@@ -1,10 +1,13 @@
 /** Disruption targeting (§3.5 allowed targets; §6 UX flow 5 popover choices). */
 import { describe, expect, it } from "vitest";
 import {
+  blockedWord,
+  chipText,
   disruptionStations,
-  DURATION_CHOICES,
   isValidDisruption,
   remainingS,
+  restoredText,
+  sinceText,
   targetAnchor,
   targetKindLabel,
   targetLabel,
@@ -27,13 +30,12 @@ function allTargets(): DisruptionTarget[] {
   return out;
 }
 
-describe("validKinds — only kinds the server accepts for the target (§3.5)", () => {
+describe("validKinds — only blockage kinds the server accepts for the target (§3.5)", () => {
   it("never offers a kind outside its allowed target types", () => {
     const allowed: Record<string, TargetType[]> = {
       local_block: ["segment", "station", "interlocking"],
       express_block: ["segment", "station", "interlocking"],
       full_station_closure: ["station", "complex"],
-      signal_delay: ["segment", "interlocking"],
     };
     for (const target of allTargets()) {
       const kinds = validKinds(net, target);
@@ -58,11 +60,12 @@ describe("validKinds — only kinds the server accepts for the target (§3.5)", 
     ]);
   });
 
-  it("offers closure for complexes and signal problems for segments and interlockings", () => {
+  it("offers closure for complexes and track blocks for segments and interlockings, never signal problems", () => {
     expect(validKinds(net, { type: "complex", idx: 0 })).toEqual(["full_station_closure"]);
-    expect(validKinds(net, { type: "segment", idx: 0 })).toContain("signal_delay");
-    expect(validKinds(net, { type: "interlocking", idx: 0 })).toContain("signal_delay");
-    expect(validKinds(net, { type: "station", idx: 0 })).not.toContain("signal_delay");
+    expect(validKinds(net, { type: "segment", idx: 0 })[0]).toBe("local_block");
+    expect(validKinds(net, { type: "interlocking", idx: 0 })[0]).toBe("local_block");
+    for (const target of allTargets()) expect(validKinds(net, target)).not.toContain("signal_delay");
+    expect(isValidDisruption(net, "signal_delay", { type: "segment", idx: 0 })).toBe(false);
   });
 
   it("offers nothing for unknown targets", () => {
@@ -111,13 +114,48 @@ describe("labels and anchors", () => {
   });
 });
 
-describe("durations", () => {
-  it("offers until-cleared, 10, 20 and 30 minutes", () => {
-    expect(DURATION_CHOICES.map((c) => c.seconds)).toEqual([null, 600, 1200, 1800]);
+describe("blockages last until cleared", () => {
+  const block = (kind: DisruptionInfo["kind"], start_t = 29_520): DisruptionInfo => ({
+    id: 1,
+    kind,
+    target: { type: "segment", idx: 0 },
+    label: "",
+    start_t,
+    end_t: null,
   });
 
-  it("counts down in sim seconds and never goes negative", () => {
-    const d: DisruptionInfo = { id: 1, kind: "signal_delay", target: { type: "segment", idx: 0 }, label: "", start_t: 100, end_t: 1900 };
+  it("labels chips CLOSED / BLOCKED with no countdown", () => {
+    expect(chipText(block("full_station_closure"), 0)).toEqual({ label: "CLOSED", since: "" });
+    expect(chipText(block("local_block"), 0)).toEqual({ label: "BLOCKED", since: "" });
+    expect(chipText(block("express_block"), 1)).toEqual({ label: "EXPRESS BLOCKED", since: "" });
+    expect(chipText(block("local_block"), 2)).toEqual({ label: "LOCAL BLOCKED", since: "since 8:12 AM" });
+    expect(chipText(block("full_station_closure"), 4)).toEqual({ label: "CLOSED", since: "since 8:12 AM" });
+    for (const kind of ["full_station_closure", "local_block", "express_block", "signal_delay"] as const) {
+      for (let tier = 0; tier <= 4; tier++) {
+        const { label, since } = chipText({ ...block(kind), end_t: 31_320 } as DisruptionInfo, tier);
+        // Even a timed disruption (an old restored session) shows no countdown or "∞".
+        expect(`${label} ${since}`).not.toMatch(/\d+:\d\d(?! [AP]M)|∞|left/);
+      }
+    }
+    expect(blockedWord("full_station_closure")).toBe("CLOSED");
+    expect(blockedWord("express_block")).toBe("BLOCKED");
+  });
+
+  it("says since when, not how long is left", () => {
+    expect(sinceText(block("full_station_closure"))).toBe("Closed since 8:12 AM");
+    expect(sinceText(block("local_block", 61_200))).toBe("Blocked since 5:00 PM");
+  });
+
+  it("words the service-restored notice", () => {
+    const st = { ...block("full_station_closure"), target: { type: "station" as const, idx: 0 } };
+    expect(restoredText(net, [st])).toBe("Times Sq-42 St reopened");
+    expect(restoredText(net, [block("express_block")])).toBe("Times Sq-42 St ↔ 34 St-Penn Station: express track clear again");
+    expect(restoredText(null, [{ ...block("local_block"), label: "Canarsie Tube" }])).toBe("Canarsie Tube: local track clear again");
+    expect(restoredText(net, [st, block("local_block"), block("express_block")])).toBe("Service restored at 3 places");
+  });
+
+  it("keeps the remaining time only for a session restore of a timed disruption", () => {
+    const d: DisruptionInfo = { ...block("local_block", 100), end_t: 1900 };
     expect(remainingS(d, 1000)).toBe(900);
     expect(remainingS(d, 5000)).toBe(0);
     expect(remainingS(d, null)).toBe(1800);

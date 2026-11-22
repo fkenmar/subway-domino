@@ -4,7 +4,7 @@
  */
 import { CalloutPacer } from "./calloutPacer";
 import { WS_URL } from "./config";
-import { remainingS, targetLabel } from "./disruptions";
+import { remainingS, restoredText } from "./disruptions";
 import { formatClock } from "./format";
 import { FrameBuffer } from "./interp";
 import type { GeoPreset } from "./network";
@@ -12,6 +12,7 @@ import { mapView } from "@/map/mapView";
 import type {
   ClientMessage,
   DisruptionEvent,
+  DisruptionInfo,
   DisruptionKind,
   DisruptionTarget,
   Frame,
@@ -32,10 +33,6 @@ const RESUME_GRACE_MS = 90_000;
 const OPTIMISTIC_HOLD_MS = 2_000;
 const OUTBOX_LIMIT = 16;
 const RECONNECTED_BANNER_MS = 2_500;
-/** Sim seconds per wall second at each speed. */
-const SIM_PER_WALL_S: Record<Speed, number> = { pause: 0, "1x": 60, "2x": 120, "5x": 300 };
-/** A disruption shorter than this in wall time gets a one-time "try 1 min/s" hint. */
-const SHORT_CRISIS_WALL_S = 15;
 const CALLOUT_TICK_MS = 250;
 
 interface Persisted {
@@ -77,7 +74,8 @@ export class SessionController {
   private readonly pacer = new CalloutPacer();
   /** The pointer is on the callout toast: don't swap it out from under the reader. */
   private calloutHeld = false;
-  private speedHintShown = false;
+  /** Blockages the user asked to clear: their `disruption_cleared` gets a "Service restored" notice. */
+  private restoring = new Set<number>();
 
   start(): void {
     if (this.client) return;
@@ -153,19 +151,25 @@ export class SessionController {
     s.clearHistory();
     s.setModePulse(false);
     s.setActivePreset(null);
+    this.restoring.clear();
     this.send({ type: "set_profile", profile });
   }
 
-  addDisruption(kind: DisruptionKind, target: DisruptionTarget, durationS: number | null): void {
-    this.send({ type: "add_disruption", kind, target, duration_s: durationS });
+  /** Start a blockage. It lasts until the user clears it: the UI never sends a duration. */
+  addDisruption(kind: DisruptionKind, target: DisruptionTarget): void {
+    this.send({ type: "add_disruption", kind, target, duration_s: null });
   }
 
+  /** Restore service on one blockage ("Service restored" notice once the server confirms). */
   clearDisruption(id: number): void {
+    this.restoring.add(id);
     this.send({ type: "clear_disruption", id });
   }
 
   clearAll(): void {
-    useStore.getState().setActivePreset(null);
+    const s = useStore.getState();
+    for (const d of s.disruptions) this.restoring.add(d.id);
+    s.setActivePreset(null);
     this.send({ type: "clear_all" });
   }
 
@@ -183,6 +187,7 @@ export class SessionController {
     }
     if (s.onboarding === "presets") s.setOnboarding("toggle");
     s.setActivePreset(preset.id);
+    this.restoring.clear();
     this.send({ type: "preset", id: preset.id });
   }
 
@@ -192,6 +197,7 @@ export class SessionController {
     s.setModePulse(false);
     s.select(null);
     s.setActivePreset(null);
+    this.restoring.clear();
     this.send({ type: "reset" });
   }
 
@@ -238,42 +244,26 @@ export class SessionController {
     if (next) s.showCallout({ id: `callout-${next.event.id}`, event: next.event, recent: next.recent });
   }
 
-  /** Disruption ended on its own: say so (toast + log), and record the window's real end. */
-  private onDisruptionEnded(ev: DisruptionEvent, t: number): void {
+  /**
+   * Blockages ended (record each window's real end). The ones the user cleared, and any
+   * that ended on their own (only a restored older session can still carry a timed one),
+   * get one "Service restored" notice for the batch; ends caused by a reset stay silent.
+   */
+  private onDisruptionsEnded(evs: readonly DisruptionEvent[], t: number): void {
     const s = useStore.getState();
-    s.endDisruptionWindow(ev.disruption.id, t);
-    // The "try 1 min/s" hint is moot once the crisis is over.
-    if (s.toasts.some((x) => x.id === `speed-hint-${ev.disruption.id}`)) s.dismissToast(`speed-hint-${ev.disruption.id}`);
-    if (ev.kind !== "disruption_expired") return;
-    const net = s.network;
-    const d = ev.disruption;
-    const name = net ? targetLabel(net, d.target) : d.label;
-    const what =
-      d.kind === "full_station_closure"
-        ? `${name} reopened`
-        : d.kind === "signal_delay"
-          ? `Signals back to normal at ${name}`
-          : `${name}: ${d.kind === "express_block" ? "express" : "local"} track clear again`;
-    s.pushToast({ id: `ended-${d.id}`, kind: "notice", text: `${what} · ${formatClock(t)}` });
-  }
-
-  /** A preset crisis that will be over in a few wall seconds: suggest a slower speed, once. */
-  private maybeSpeedHint(ev: DisruptionEvent): void {
-    const s = useStore.getState();
-    const d = ev.disruption;
-    if (this.speedHintShown || d.end_t == null) return;
-    const speed = s.settings.speed;
-    const rate = SIM_PER_WALL_S[speed];
-    if (speed === "1x" || rate <= 0) return;
-    const wallS = (d.end_t - d.start_t) / rate;
-    if (wallS > SHORT_CRISIS_WALL_S) return;
-    this.speedHintShown = true;
-    const what = d.kind === "full_station_closure" ? "closure" : d.kind === "signal_delay" ? "signal problem" : "track block";
+    const restored: DisruptionInfo[] = [];
+    for (const ev of evs) {
+      s.endDisruptionWindow(ev.disruption.id, t);
+      const asked = this.restoring.delete(ev.disruption.id);
+      if (asked || ev.kind === "disruption_expired") restored.push(ev.disruption);
+    }
+    if (restored.length === 0) return;
     s.pushToast({
-      id: `speed-hint-${d.id}`,
+      id: `restored-${restored.map((d) => d.id).join("-")}`,
       kind: "notice",
-      text: `This ${what} lasts ~${Math.max(1, Math.round(wallS))} s at ${speed === "5x" ? "5" : "2"} min/s. Try 1 min/s to watch the AI work through it.`,
-      cta: { label: "Slow to 1 min/s", speed: "1x" },
+      kicker: "Service restored",
+      tone: "restored",
+      text: `${restoredText(s.network, restored)} · ${formatClock(t)}`,
     });
   }
 
@@ -398,6 +388,7 @@ export class SessionController {
         return;
       case "events": {
         const feed: FeedItem[] = [];
+        const ended: DisruptionEvent[] = [];
         for (const ev of msg.items) {
           if (ev.kind === "callout") {
             feed.push({ id: `c${ev.id}`, kind: "callout", t: ev.t, event: ev });
@@ -409,12 +400,12 @@ export class SessionController {
             feed.push({ id: `${ev.kind}-${ev.disruption.id}`, kind: "disruption", t, event: ev });
             if (ev.kind === "disruption_started") {
               if (useStore.getState().settings.mode === "normal") s.setModePulse(true);
-              this.maybeSpeedHint(ev);
             } else {
-              this.onDisruptionEnded(ev, t);
+              ended.push(ev);
             }
           }
         }
+        if (ended.length) this.onDisruptionsEnded(ended, s.clockS ?? ended[0].disruption.start_t);
         s.addFeed(feed);
         return;
       }

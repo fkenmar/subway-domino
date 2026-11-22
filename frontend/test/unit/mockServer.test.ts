@@ -191,7 +191,25 @@ describe("mock server speaks protocol v1", () => {
     const list = await c.json("disruptions", (d) => d.items.length > 0);
     expect(list.items[0]).toMatchObject({ kind: preset.disruptions[0].kind, target: preset.disruptions[0].target });
     expect(list.items[0].label).not.toBe("");
+    expect(list.items[0].end_t).toBeNull(); // presets block until cleared, like the real server
 
+    c.send({ type: "clear_all" });
+    await c.json("disruptions", (d) => d.items.length === 0);
+    c.close();
+  });
+
+  it("serves a signal-problems preset as an indefinite local block on the same target", async () => {
+    const c = await connect(server);
+    c.hello();
+    await c.json("welcome");
+    const preset = net.presets.find((p) => p.disruptions.some((d) => d.kind === "signal_delay"));
+    expect(preset).toBeDefined();
+    if (!preset) return;
+    c.send({ type: "preset", id: preset.id });
+    const list = await c.json("disruptions", (d) => d.items.length > 0);
+    expect(list.items.map((d) => [d.kind, d.target, d.end_t])).toEqual(
+      preset.disruptions.map((d) => [d.kind === "signal_delay" ? "local_block" : d.kind, d.target, null]),
+    );
     c.send({ type: "clear_all" });
     await c.json("disruptions", (d) => d.items.length === 0);
     c.close();

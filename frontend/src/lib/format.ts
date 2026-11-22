@@ -16,16 +16,6 @@ export function formatClock(clockS: number | null | undefined, opts: { seconds?:
   return `${h12}:${String(m).padStart(2, "0")}${sec} ${h24 < 12 ? "AM" : "PM"}`;
 }
 
-/** Seconds → "m:ss" (or "h:mm:ss"). Negative values clamp to 0. */
-export function formatCountdown(seconds: number): string {
-  const s = Math.max(0, Math.ceil(seconds));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
-  return `${m}:${String(sec).padStart(2, "0")}`;
-}
-
 /** Seconds → "12 min" / "45 s" / "1 h 05 min" for prose. */
 export function formatSpan(seconds: number): string {
   const s = Math.max(0, Math.round(seconds));

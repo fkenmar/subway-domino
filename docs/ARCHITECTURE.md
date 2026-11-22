@@ -174,7 +174,7 @@ The river crossings are verified adjacent pairs: A40–A38 (Cranberry), 224–22
 There are **6 to 8 presets**, each built to show the AI clearly beating the baseline:
 - a Lexington closure at 14 St–Union Sq;
 - a Queens Blvd express block near Jackson Hts–Roosevelt Av;
-- a signal delay at the 7 Av/Times Sq interlocking;
+- a signal delay at the 7 Av/Times Sq interlocking (the app serves it as a local block until cleared, titled "Tracks blocked at Times Sq–42 St": §5.3, §6);
 - an L local block in the Canarsie Tube (1 Av–Bedford Av);
 - a Manhattan Bridge block (DeKalb–Canal/Grand);
 - an 8 Av local block at 59 St (A/C);
@@ -731,7 +731,7 @@ The AI must beat Normal on mean total cost across the 50 eval seeds, with a seed
  "target":{"type":"station"|"complex"|"segment"|"interlocking","idx":0},"duration_s":1800|null}
 {"type":"clear_disruption","id":3}
 {"type":"clear_all"}
-{"type":"preset","id":"lex-union-sq"}                  // reset to the preset's profile, then add its disruptions
+{"type":"preset","id":"lex-union-sq"}                  // reset to the preset's profile, then add its disruptions as blockages until cleared
 {"type":"reset"}
 {"type":"activity"}                                     // throttled user-activity heartbeat (≤ 1 per 30 s)
 {"type":"ping","t":1234.5}
@@ -781,6 +781,10 @@ The AI must beat Normal on mean total cost across the 50 eval seeds, with a seed
 Size = 24 + 9n + 2m ≈ 5.6 KB at n = 510, m = 475. At 4 Hz that is ≈ 22 KB/s per session before permessage-deflate, ≈ 0.9 MB/s at the 40-session cap.
 
 **Golden fixtures.** WP4 writes `backend/tests/fixtures/protocol/frame_v1.bin` plus `frame_v1.json` (the decoded values) and `messages_v1.json` (one example of every JSON message). WP3's vitest decodes them. Both sides test against the same files.
+
+**Blockages until cleared (WP3d, 2026-11-22).** The wire format above is unchanged; `duration_s` and `signal_delay` stay valid (training, evaluation and old clients use them). Two behaviours sit on top of it:
+- The web client offers only blockage kinds (`full_station_closure`, `local_block`, `express_block`) and always sends `"duration_s": null`, so every disruption it starts lasts until the user clears it.
+- `preset` serves the preset's disruptions as blockages too (`app.session.as_blockages`): each gets `duration_s = None` (`end_t: null`), and a `signal_delay` becomes a `local_block` on the same target. `network.json`, its `graph_version` and `sim.preset_scenario` are untouched, so WP2's calibration still uses the timed presets.
 
 ### 5.4 Callouts — CONTRACT behavior (`app/callouts.py`)
 
@@ -837,7 +841,7 @@ export default nextConfig;
 - **Station circles** are sized by zoom. Crowding is shown as a fill ramp (calm → amber → red) from `station_crowd`, with a pulse when it reaches ≥ 80. Closed stations show a black X.
 - **Trains** are drawn as small rounded capsules in route color, oriented along the track. At high zoom they carry the route letter. Their status bits are shown as icons/halos: tunnel-stuck red halo, held amber ring, short-turning ↺, gap train ✚, rerouted dashed outline.
 - **Positions** follow the §2.7 positioning rule. They are interpolated between the last two frames, matching trains by `train_id` and route: if a train's edge is unchanged, lerp `frac`. If the edge changed, move along the cheapest chain of continuing edges (each edge's to-station == the next one's from-station), at most 6 edges past the old one. The search prefers edges the train's route uses, penalises crossovers, turnbacks and reversals, and caches paths per (prev, next, route). Real discontinuities are cross-faded rather than slid: a new trip in a reused slot (route changed, or `frac` ran backwards), no path, or a path longer than 1.25 · V_MAX_CAP · Δclock + 150 m. Speed may be eased across frame boundaries if positions at frame times stay exact (WP3b). Rendering runs at 60 fps with `requestAnimationFrame`, and the dynamic layer only is redrawn each frame.
-- **Disruptions** are drawn on their target: red hatched segment for a block (local/express track side), amber dashed for a signal delay, black ring for a closure. Each shows a countdown chip.
+- **Disruptions** are drawn on their target: red hatched segment for a block (local/express track side), black ring for a closure (amber dashed for a signal delay, which the UI no longer starts). Each shows a status chip with no countdown: "CLOSED" / "BLOCKED" when zoomed out, "LOCAL BLOCKED" / "EXPRESS BLOCKED" closer in, plus "since 8:12 AM" at street zoom.
 - **Interlockings** (small diamonds) and yards (small squares) appear from mid zoom.
 
 **UX flow (CONTRACT):**
@@ -848,7 +852,11 @@ export default nextConfig;
    - It leads with a **since-takeover** comparison: rider-minutes waited, AI vs Normal, plus a one-line verdict ("AI ahead on k of 4"). The verdict has a small hysteresis so it does not flip at the edge.
    - Per-metric "right now" deltas are green or red. A delta stays neutral grey inside a dead band (|Δ| < 3 % or ±1 unit), so noise does not read as a result.
    - Each sparkline draws the twin as a solid grey second line and shades the disruption window. CalloutLayer shows toasts and ActivityFeed lists all actions.
-5. **Any target.** Clicking a station, segment, interlocking or river crossing opens a DisruptionPopover listing only the kinds valid for that target, with duration options (until cleared · 10 · 20 · 30 min). Search (by station name and route) flies the camera there.
+5. **Any target.** Clicking a station, segment, interlocking or river crossing opens a DisruptionPopover listing only the blockage kinds valid for that target (closure, local block, express block; no signal problems). There is no duration: every blockage lasts until the user clears it (WP3d, 2026-11-22). Search (by station name and route) flies the camera there.
+   - On a target that is already blocked, the popover leads with each active block ("Blocked since 8:12 AM") and a **Restore service** button; adding another block there is one click away.
+   - The "Break the city" menu lists the active blockages ("since …", locate, **Restore**) plus **Clear all**.
+   - When the user clears a block (one or all), a green "Service restored" notice says what reopened ("14 St–Union Sq reopened", "…: local track clear again", or "Service restored at N places"). Ends caused by a reset, preset or profile change stay silent. On phones this notice briefly takes the place of the AI callout.
+   - Preset titles that the data words as a timed signal problem get a frontend copy override by id (`times-sq-signals` → "Tracks blocked at Times Sq–42 St").
 6. **InfoModal:**
    - datasets with links (`fgm6-ccue`, `5f5g-n3cz`, `5wq4-mkjj`);
    - how the sim works;
@@ -897,7 +905,12 @@ pydantic==2.14.3
 
 **`backend/railway.json`:** Dockerfile builder, `healthcheckPath: "/health"`, restart policy `ON_FAILURE`.
 
-**Railway env:** `ALLOWED_ORIGINS=https://kenmar.dev,http://localhost:3000` (plus the Vercel preview domain if desired) and `MAX_SESSIONS=40`.
+**Railway service** (deployed 2026-11-22):
+- Root Directory `backend`. Built from the repo root, Railpack fails.
+- `PORT=8000`, and the public domain's target port must match. A mismatch gives 502 "Application failed to respond".
+- `ALLOWED_ORIGINS=https://kenmar.dev,https://www.kenmar.dev,https://<frontend>.vercel.app,http://localhost:3000`. The portfolio's canonical host is **www**.kenmar.dev.
+- `MAX_SESSIONS=40`.
+- Vercel preview deployments are not in the allow-list, by design.
 
 **Vercel (Subway Domino project):** root `frontend/`, `NEXT_PUBLIC_WS_URL=wss://<railway-domain>/ws`.
 

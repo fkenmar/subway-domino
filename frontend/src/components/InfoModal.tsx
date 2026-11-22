@@ -52,7 +52,7 @@ function Overview() {
       <ol className={styles.steps}>
         <li>
           <b>Break the city.</b> Pick a meltdown preset, or click any station, track segment, interlocking (◆) or river
-          crossing and choose what fails.
+          crossing and choose what fails. It stays closed or blocked until you restore service.
         </li>
         <li>
           <b>Watch Normal Schedule.</b> Trains keep to the timetable and the signals: they queue at red signals in

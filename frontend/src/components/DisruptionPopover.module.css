@@ -159,11 +159,6 @@
   color: var(--bad);
 }
 
-.activeIcon[data-kind="signal_delay"] {
-  background: rgba(255, 176, 32, 0.16);
-  color: var(--warn);
-}
-
 .activeIcon svg {
   width: 16px;
   height: 16px;
@@ -190,25 +185,41 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* "Restore service": the obvious way out of a blockage. */
 .clear {
   flex: none;
-  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
   padding: 0 12px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--line-strong);
-  background: var(--panel-raised);
+  border: 1px solid rgba(62, 211, 107, 0.55);
+  background: rgba(62, 211, 107, 0.14);
   color: var(--text);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
+  white-space: nowrap;
   cursor: pointer;
 }
 
 .clear:hover {
-  background: var(--panel-hover);
+  background: rgba(62, 211, 107, 0.24);
+  border-color: var(--good);
 }
 
-.kinds,
-.durations {
+.clear:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.clear svg {
+  width: 13px;
+  height: 13px;
+  color: var(--good);
+}
+
+.kinds {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -249,11 +260,6 @@
   border-color: rgba(255, 90, 79, 0.5);
 }
 
-.kind[data-kind="signal_delay"]:has(input:checked) {
-  background: rgba(255, 176, 32, 0.08);
-  border-color: rgba(255, 176, 32, 0.5);
-}
-
 .kind:has(input:focus-visible) {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
@@ -281,11 +287,6 @@
   color: var(--bad);
 }
 
-.kind[data-kind="signal_delay"]:has(input:checked) .kindIcon {
-  background: rgba(255, 176, 32, 0.18);
-  color: var(--warn);
-}
-
 .kindIcon svg {
   width: 18px;
   height: 18px;
@@ -307,39 +308,6 @@
   color: var(--text-muted);
   font-size: 11px;
   line-height: 1.3;
-}
-
-.segmented {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr;
-  gap: 2px;
-  padding: 3px;
-  border-radius: var(--radius-sm);
-  background: var(--panel-solid);
-  border: 1px solid var(--line);
-}
-
-.segment {
-  height: 30px;
-  padding: 0 6px;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.segment:hover {
-  color: var(--text);
-}
-
-.segment[aria-checked="true"] {
-  background: var(--panel-raised);
-  color: var(--text);
-  box-shadow: inset 0 0 0 1px var(--line-strong);
 }
 
 .go {
@@ -389,6 +357,13 @@
 .more:hover {
   color: var(--text);
   border-color: var(--text-dim);
+}
+
+.note {
+  margin: -4px 0 0;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  text-align: center;
 }
 
 .empty {

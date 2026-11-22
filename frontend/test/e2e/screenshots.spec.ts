@@ -92,10 +92,16 @@ test.describe("Subway Domino tour", () => {
     await breakButton.click();
     const presets = page.getByRole("dialog", { name: "Break the city" }).getByRole("navigation", { name: "Meltdown presets" });
     expect(await presets.getByRole("button").count()).toBeGreaterThan(3);
+    // Every preset is a blockage until cleared: the Times Sq one says so (frontend copy override).
+    await expect(presets).toContainText("Tracks blocked at Times Sq–42 St");
+    await expect(presets).not.toContainText("Signal problems");
     await presets.getByRole("button").first().click();
-    // The same menu lists the active disruptions with clear buttons.
+    // The same menu lists the active blockages, each with a Restore button, plus Clear all.
     await breakButton.click();
-    await expect(page.getByRole("region", { name: "Active disruptions" }).getByRole("button", { name: /^Clear/ }).first()).toBeAttached();
+    const blocked = page.getByRole("region", { name: "Active blockages" });
+    await expect(blocked.getByRole("button", { name: /^Restore service/ }).first()).toBeAttached();
+    await expect(blocked.getByRole("button", { name: "Clear all" })).toBeAttached();
+    await expect(blocked).toContainText(/since \d{1,2}:\d\d [AP]M/);
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog", { name: "Break the city" })).toBeHidden();
     await expect(page.getByRole("radiogroup", { name: "Who dispatches the trains" })).toHaveAttribute("data-pulse", "true");
@@ -136,13 +142,10 @@ test.describe("Subway Domino tour", () => {
     else await page.mouse.click(c.x, c.y);
     const popover = page.getByRole("dialog", { name: /Times Sq/ });
     await expect(popover).toBeVisible();
-    await expect(popover.getByRole("radiogroup", { name: "Duration" }).getByRole("radio")).toHaveText([
-      "Until cleared",
-      "10 min",
-      "20 min",
-      "30 min",
-    ]);
-    await expect(popover).not.toContainText("Signal problems"); // not valid on a station (§3.5)
+    // Blockage kinds only, and no duration: it lasts until the user restores service.
+    await expect(popover.getByRole("radiogroup", { name: "Duration" })).toHaveCount(0);
+    await expect(popover).not.toContainText("Signal problems");
+    await expect(popover).toContainText(/until you restore service/);
     await page.waitForTimeout(500);
     await shot(page, "05-disruption-popover");
     await popover.getByRole("button", { name: "Close", exact: true }).click();
@@ -163,6 +166,14 @@ test.describe("Subway Domino tour", () => {
       }
       await expect(modal.locator(`a[href*="${id}"]`).first()).toBeAttached();
     }
+
+    // 6 — Restore service: Clear all ends the meltdown and says so.
+    await page.keyboard.press("Escape");
+    await expect(modal).toBeHidden();
+    await breakButton.click();
+    await page.getByRole("region", { name: "Active blockages" }).getByRole("button", { name: "Clear all" }).click();
+    await expect(page.getByRole("status").filter({ hasText: /reopened|clear again|Service restored at/ })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Active blockages" })).toHaveCount(0);
 
     expect(errors, errors.join("\n")).toEqual([]);
   });

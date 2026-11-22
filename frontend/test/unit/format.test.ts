@@ -4,7 +4,6 @@ import {
   DASH,
   formatClock,
   formatCompact,
-  formatCountdown,
   formatInt,
   formatMinutes,
   formatSigned,
@@ -24,13 +23,6 @@ describe("format", () => {
     expect(formatClock(Number.NaN)).toBe("--:--");
     expect(formatClock(30_125, { seconds: true })).toBe("8:22:05 AM");
     expect(formatClock(null, { seconds: true })).toBe("--:--:--");
-  });
-
-  it("formats countdown chips", () => {
-    expect(formatCountdown(65)).toBe("1:05");
-    expect(formatCountdown(59.2)).toBe("1:00");
-    expect(formatCountdown(3_661)).toBe("1:01:01");
-    expect(formatCountdown(-5)).toBe("0:00");
   });
 
   it("formats spans for prose", () => {
