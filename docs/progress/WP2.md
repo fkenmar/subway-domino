@@ -134,3 +134,9 @@ REROUTE 0.7 %, EXPRESS 0.6 %.
    thresholds are readable from the observation. (Layout is GUIDANCE; recorded for the model card.)
 3. `Scenario.headway_jitter: float = 0.0` (backwards-compatible superset of §3.1) implements the
    Stage-1 "random headway jitter".
+
+### 2026-11-22: orchestrator, speed check (cited in the README)
+- `scratchpad/evaltools/speed_check.py` on calm am_peak, 10 sim-min, seed 0:
+  - mean train speed 27.6 km/h including dwells (real NYC subway ≈ 27 km/h);
+  - moving trains: median 39.6 km/h, max 64.8 km/h.
+- The live frame stream gives a median of 37 km/h for moving trains against the on-screen clock at 1 min/s, and 30 km/h at 5 min/s.

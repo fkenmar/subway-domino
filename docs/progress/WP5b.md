@@ -315,3 +315,9 @@ It passes 3 of the 4 bar checks and is the **new champion**: `runs/pertrain_glob
 - cost −23.1 %, win 86 %, excess wait 24 % (passes), stuck −27.4 % (fails; the bar is 30 %).
 - Run-to-run variance across single-seed runs is large (stuck −18 to −33 % across configs), so the 2.6-pt gap is near the noise floor.
 - Options: ship with an honest model card (stuck −27 % vs the 30 % target), or later try multi-seed training / selection by 50-seed eval. The user decides.
+
+### 2026-11-22: rule-based benchmark, full numbers (cited in the README)
+- `scratchpad/evaltools/scripted_eval.py noswitch` on the 50 eval seeds:
+  - win 90 %, total cost −19.2 %, avg wait −4.1 %, stuck −33.2 %, crowding −6.4 %, excess wait removed 20 % (CI 12–28 %).
+  - The README fact-check reproduced these numbers.
+- With track switches: win 84 %, cost −16.3 %, wait −3.1 %, stuck −33.1 %, crowding +4.0 %, excess 15 %.
