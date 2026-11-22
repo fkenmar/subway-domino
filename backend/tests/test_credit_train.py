@@ -17,6 +17,7 @@ from typing import Any, Callable
 import numpy as np
 import pytest
 
+pytest.importorskip("sb3_contrib")
 pytestmark = pytest.mark.train
 
 import gymnasium as gym  # noqa: E402

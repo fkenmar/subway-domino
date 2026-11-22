@@ -27,14 +27,17 @@ REQUIRED_META = ("obs_dim", "n_actions", "action_names", "graph_version", "const
 
 
 def _check_onnx_contract(path: Path) -> OnnxPolicy:
-    import onnx
-
-    m = onnx.load(str(path))
-    assert [o.version for o in m.opset_import if o.domain in ("", "ai.onnx")] == [18]
-    assert not any(t.data_location == onnx.TensorProto.EXTERNAL for t in m.graph.initializer)
-    assert [i.name for i in m.graph.input] == ["obs"] and [o.name for o in m.graph.output] == ["logits"]
-    dims = m.graph.input[0].type.tensor_type.shape.dim
-    assert dims[0].dim_param and dims[1].dim_value == C.OBS_DIM  # dynamic batch
+    try:
+        import onnx  # graph-proto checks need the `onnx` package (requirements-train.txt only)
+    except ModuleNotFoundError:
+        onnx = None
+    if onnx is not None:
+        m = onnx.load(str(path))
+        assert [o.version for o in m.opset_import if o.domain in ("", "ai.onnx")] == [18]
+        assert not any(t.data_location == onnx.TensorProto.EXTERNAL for t in m.graph.initializer)
+        assert [i.name for i in m.graph.input] == ["obs"] and [o.name for o in m.graph.output] == ["logits"]
+        dims = m.graph.input[0].type.tensor_type.shape.dim
+        assert dims[0].dim_param and dims[1].dim_value == C.OBS_DIM  # dynamic batch
     pol = OnnxPolicy(path)
     md = pol.metadata
     assert all(k in md for k in REQUIRED_META), md
